@@ -2,7 +2,152 @@
 
 namespace App\Services\Registrars;
 
+use App\Concerns\RegistrarService;
+use App\Models\Registrar;
+use Exception;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
+
 class DynadotService
 {
-    const BASE_URL = 'https://api.dynadot.com/restful/v1';
+    use RegistrarService;
+
+    const BASE_URL = 'https://api.dynadot.com';
+
+    protected ?string $apiKey = null;
+
+    protected Registrar $registrar;
+
+    protected Client $client;
+
+    public function __construct(Registrar $registrar)
+    {
+        $this->registrar = $registrar;
+        $this->apiKey = $this->getApiKey();
+        $this->client = new Client([
+            'base_uri' => self::BASE_URL,
+            'timeout' => 30,
+        ]);
+    }
+
+    protected function getApiKey(): ?string
+    {
+        $apiSettings = $this->registrar->api_settings;
+
+        if (empty($apiSettings['api_key'])) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($apiSettings['api_key']);
+        } catch (Exception $e) {
+            Log::error('Failed to decrypt Dynadot API key', [
+                'registrar_id' => $this->registrar->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    public function isConfigured(): bool
+    {
+        return ! empty($this->apiKey);
+    }
+
+    public function validateCredentials(): bool
+    {
+        if (! $this->isConfigured()) {
+            return false;
+        }
+
+        try {
+            $response = $this->client->get('/restful/v1/tld/get_tld_price', [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Authorization' => "Bearer {$this->apiKey}",
+                ],
+                'query' => [
+                    'currency' => 'usd',
+                    'count_per_page' => 1,
+                ],
+            ]);
+
+            $data = json_decode($response->getBody()->getContents(), true);
+
+            return $response->getStatusCode() === 200 && ($data['code'] ?? null) === 200;
+        } catch (GuzzleException|Exception $e) {
+            Log::error('Dynadot credentials validation failed', [
+                'registrar_id' => $this->registrar->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    public function getPrices(): Collection
+    {
+        if (! $this->isConfigured()) {
+            throw new Exception('Dynadot API is not properly configured');
+        }
+
+        try {
+            $response = $this->client->get('/restful/v1/tld/get_tld_price', [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Authorization' => "Bearer {$this->apiKey}",
+                ],
+                'query' => [
+                    'currency' => 'usd',
+                ],
+            ]);
+
+            $body = $response->getBody()->getContents();
+            $data = json_decode($body, true);
+
+            if ($response->getStatusCode() !== 200) {
+                throw new Exception("API request failed: {$response->getStatusCode()}");
+            }
+
+            if (($data['code'] ?? null) !== 200) {
+                $message = $data['message'] ?? 'Unknown error';
+                $code = $data['code'] ?? 'no code';
+                throw new Exception("API Error (code: {$code}): {$message}");
+            }
+
+            $tldList = $data['data']['tldPriceList'] ?? [];
+
+            return collect($tldList)->map(function ($item) {
+                return [
+                    'tld' => $item['tld'],
+                    'register_price' => $this->parsePrice($item['allYearsRegisterPrice'][0] ?? null),
+                    'renew_price' => $this->parsePrice($item['allYearsRenewPrice'][0] ?? null),
+                    'transfer_price' => $this->parsePrice($item['transferPrice'] ?? null),
+                    'restore_price' => $this->parsePrice($item['restorePrice'] ?? null),
+                    'privacy_price' => $item['supportPrivacy'] === 'Yes' ? 0.00 : null,
+                    'misc_price' => $this->parsePrice($item['graceFeePrice'] ?? null),
+                ];
+            });
+        } catch (GuzzleException|Exception $e) {
+            Log::error('Failed to fetch Dynadot prices', [
+                'registrar_id' => $this->registrar->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    protected function parsePrice(?string $price): ?float
+    {
+        if ($price === null || $price === '' || $price === '0.00') {
+            return null;
+        }
+
+        return (float) $price;
+    }
 }

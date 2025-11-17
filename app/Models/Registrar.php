@@ -3,7 +3,10 @@
 namespace App\Models;
 
 use App\Enums\ApiSupport;
+use App\Services\Registrars\RegistrarServiceFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Qopiku\FilamentSqids\Traits\HasSqids;
 
@@ -28,8 +31,23 @@ class Registrar extends Model
         ];
     }
 
-    public function currency()
+    public function currency(): BelongsTo
     {
         return $this->belongsTo(Currency::class);
+    }
+
+    public function fees(): HasMany
+    {
+        return $this->hasMany(RegistrarFee::class);
+    }
+
+    public function getService(): ?object
+    {
+        return RegistrarServiceFactory::make($this);
+    }
+
+    public function hasApiSupport(): bool
+    {
+        return RegistrarServiceFactory::hasApiSupport($this);
     }
 }

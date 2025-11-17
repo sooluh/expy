@@ -12,6 +12,7 @@
     "laravel/framework": "^12.0",
     "laravel/tinker": "^2.10.1",
     "livewire/volt": "^1.7.0",
+    "marcelweidum/filament-expiration-notice": "^1.0",
     "muazzam/slick-scrollbar": "^1.0",
     "qopiku/filament-sqids": "^0.0.1",
     "secondnetwork/blade-tabler-icons": "^3.35",

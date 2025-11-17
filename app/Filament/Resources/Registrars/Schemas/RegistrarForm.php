@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Registrars\Schemas;
 
+use App\Concerns\RegistrarService;
 use App\Enums\ApiSupport;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Crypt;
 
 class RegistrarForm
 {
+    use RegistrarService;
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -51,7 +54,7 @@ class RegistrarForm
                     }),
 
                 TextInput::make('api_settings.api_key')
-                    ->label('Dynadot API Key')
+                    ->label('API Production Key')
                     ->password()
                     ->revealable()
                     ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::DYNADOT)
@@ -75,18 +78,5 @@ class RegistrarForm
                         return Crypt::encryptString($state);
                     }),
             ]);
-    }
-
-    private static function resolveApiSupport(ApiSupport|int|string|null $value): ?ApiSupport
-    {
-        if ($value instanceof ApiSupport) {
-            return $value;
-        }
-
-        if (blank($value) || ! is_numeric($value)) {
-            return null;
-        }
-
-        return ApiSupport::tryFrom((int) $value);
     }
 }

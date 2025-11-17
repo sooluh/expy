@@ -3,6 +3,9 @@
 namespace App\Filament\Resources\Registrars\Tables;
 
 use App\Enums\ApiSupport;
+use App\Filament\Resources\Registrars\RegistrarResource;
+use App\Models\Registrar;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -53,6 +56,11 @@ class RegistrarsTable
                 TrashedFilter::make()->native(false),
             ])
             ->recordActions([
+                Action::make('fees')
+                    ->label('Fees')
+                    ->icon('tabler-currency-dollar')
+                    ->color('info')
+                    ->url(fn (Registrar $record): string => RegistrarResource::getUrl('fees', ['record' => $record])),
                 EditAction::make()->modalWidth(Width::Large),
                 DeleteAction::make(),
                 RestoreAction::make(),

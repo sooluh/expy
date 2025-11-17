@@ -1,0 +1,246 @@
+<?php
+
+namespace App\Filament\Resources\Registrars\Pages;
+
+use App\Filament\Resources\Registrars\RegistrarResource;
+use App\Jobs\SyncRegistrarPricesJob;
+use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\ManageRelatedRecords;
+use Filament\Support\Enums\Width;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
+
+class ManageRegistrarFees extends ManageRelatedRecords
+{
+    protected static string $resource = RegistrarResource::class;
+
+    protected static string $relationship = 'fees';
+
+    protected static string|BackedEnum|null $navigationIcon = 'tabler-currency-dollar';
+
+    public static function getNavigationLabel(): string
+    {
+        return 'Fees';
+    }
+
+    public function getTitle(): string
+    {
+        return "{$this->getOwnerRecord()->name} Fees";
+    }
+
+    protected function getHeaderActions(): array
+    {
+        $actions = [];
+
+        if ($this->getOwnerRecord()->hasApiSupport()) {
+            $actions[] = Action::make('synchronize')
+                ->label('Synchronize')
+                ->color('info')
+                ->requiresConfirmation()
+                ->modalHeading('Synchronize TLD Prices')
+                ->modalDescription("Fetch latest prices from {$this->getOwnerRecord()->name} API and update the database.")
+                ->modalSubmitActionLabel('Synchronize')
+                ->action(function () {
+                    SyncRegistrarPricesJob::dispatch(
+                        $this->getOwnerRecord()->id,
+                        Auth::id()
+                    );
+
+                    Notification::make()
+                        ->title('Price Synchronization Started')
+                        ->body('The synchronization is running in the background. You will be notified when it completes.')
+                        ->info()
+                        ->send();
+                });
+        }
+
+        $actions[] = CreateAction::make()
+            ->label('New Fee')
+            ->modalHeading('Add TLD Fee')
+            ->modalWidth(Width::Large)
+            ->schema([
+                TextInput::make('tld')
+                    ->label('TLD')
+                    ->placeholder('com, org, xyz, etc.')
+                    ->required()
+                    ->unique(table: 'registrar_fees', column: 'tld', ignorable: fn ($record) => $record, modifyRuleUsing: function ($rule) {
+                        return $rule->where('registrar_id', $this->getOwnerRecord()->id);
+                    })
+                    ->prefix('.')
+                    ->regex('/^[a-z0-9]+$/i')
+                    ->maxLength(50),
+
+                TextInput::make('register_price')
+                    ->label('Register Price')
+                    ->numeric()
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->columnSpan(1),
+
+                TextInput::make('renew_price')
+                    ->label('Renewal Price')
+                    ->numeric()
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->columnSpan(1),
+
+                TextInput::make('transfer_price')
+                    ->label('Transfer Price')
+                    ->numeric()
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->columnSpan(1),
+
+                TextInput::make('restore_price')
+                    ->label('Restore Price')
+                    ->numeric()
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->columnSpan(1),
+
+                TextInput::make('privacy_price')
+                    ->label('Privacy Protection Price')
+                    ->numeric()
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->columnSpan(1),
+
+                TextInput::make('misc_price')
+                    ->label('Miscellaneous Price')
+                    ->numeric()
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->columnSpan(1),
+            ]);
+
+        return $actions;
+    }
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                TextColumn::make('tld')
+                    ->label('TLD')
+                    ->searchable()
+                    ->sortable()
+                    ->badge()
+                    ->color('primary'),
+
+                TextColumn::make('register_price')
+                    ->label('Register')
+                    ->money(fn () => $this->getOwnerRecord()->currency->code)
+                    ->sortable()
+                    ->placeholder('—'),
+
+                TextColumn::make('renew_price')
+                    ->label('Renew')
+                    ->money(fn () => $this->getOwnerRecord()->currency->code)
+                    ->sortable()
+                    ->placeholder('—'),
+
+                TextColumn::make('transfer_price')
+                    ->label('Transfer')
+                    ->money(fn () => $this->getOwnerRecord()->currency->code)
+                    ->sortable()
+                    ->placeholder('—'),
+
+                TextColumn::make('restore_price')
+                    ->label('Restore')
+                    ->money(fn () => $this->getOwnerRecord()->currency->code)
+                    ->sortable()
+                    ->placeholder('—'),
+
+                TextColumn::make('privacy_price')
+                    ->label('Privacy')
+                    ->money(fn () => $this->getOwnerRecord()->currency->code)
+                    ->sortable()
+                    ->placeholder('—'),
+
+                TextColumn::make('misc_price')
+                    ->label('Misc')
+                    ->money(fn () => $this->getOwnerRecord()->currency->code)
+                    ->sortable()
+                    ->placeholder('—'),
+            ])
+            ->recordActions([
+                EditAction::make()
+                    ->schema([
+                        TextInput::make('tld')
+                            ->label('TLD')
+                            ->required()
+                            ->disabled()
+                            ->dehydrated(false),
+
+                        TextInput::make('register_price')
+                            ->label('Register Price')
+                            ->numeric()
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->columnSpan(1),
+
+                        TextInput::make('renew_price')
+                            ->label('Renewal Price')
+                            ->numeric()
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->columnSpan(1),
+
+                        TextInput::make('transfer_price')
+                            ->label('Transfer Price')
+                            ->numeric()
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->columnSpan(1),
+
+                        TextInput::make('restore_price')
+                            ->label('Restore Price')
+                            ->numeric()
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->columnSpan(1),
+
+                        TextInput::make('privacy_price')
+                            ->label('Privacy Protection Price')
+                            ->numeric()
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->columnSpan(1),
+
+                        TextInput::make('misc_price')
+                            ->label('Miscellaneous Price')
+                            ->numeric()
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code)
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->columnSpan(1),
+                    ]),
+                DeleteAction::make(),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+}

@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Registrars;
 
+use App\Filament\Resources\Registrars\Pages\ManageRegistrarFees;
 use App\Filament\Resources\Registrars\Pages\ManageRegistrars;
+use App\Filament\Resources\Registrars\RelationManagers\FeesRelationManager;
 use App\Filament\Resources\Registrars\Schemas\RegistrarForm;
 use App\Filament\Resources\Registrars\Tables\RegistrarsTable;
 use App\Models\Registrar;
@@ -33,6 +35,14 @@ class RegistrarResource extends Resource
     {
         return [
             'index' => ManageRegistrars::route('/'),
+            'fees' => ManageRegistrarFees::route('/{record}/fees'),
+        ];
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            FeesRelationManager::class,
         ];
     }
 
