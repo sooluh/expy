@@ -11,6 +11,7 @@ class RegistrarServiceFactory
     {
         return match ($registrar->api_support) {
             ApiSupport::DYNADOT => new DynadotService($registrar),
+            ApiSupport::PORKBUN => new PorkbunService($registrar),
             ApiSupport::NONE => null,
             default => null,
         };

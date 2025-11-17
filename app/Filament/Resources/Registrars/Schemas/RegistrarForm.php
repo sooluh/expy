@@ -48,16 +48,45 @@ class RegistrarForm
                     ->options(ApiSupport::class)
                     ->default(ApiSupport::NONE)
                     ->afterStateUpdated(function (callable $set, ApiSupport|int|string|null $state): void {
-                        if (self::resolveApiSupport($state) !== ApiSupport::DYNADOT) {
+                        $resolved = self::resolveApiSupport($state);
+                        if ($resolved !== ApiSupport::DYNADOT) {
                             $set('api_settings.api_key', null);
+                        }
+                        if ($resolved !== ApiSupport::PORKBUN) {
+                            $set('api_settings.secret_key', null);
                         }
                     }),
 
                 TextInput::make('api_settings.api_key')
-                    ->label('API Production Key')
+                    ->label(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::DYNADOT ? 'API Production Key' : 'API Key')
                     ->password()
                     ->revealable()
-                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::DYNADOT)
+                    ->visible(fn (callable $get) => in_array(self::resolveApiSupport($get('api_support')), [ApiSupport::DYNADOT, ApiSupport::PORKBUN]))
+                    ->dehydrated()
+                    ->afterStateHydrated(function (TextInput $component, $state): void {
+                        if (blank($state)) {
+                            return;
+                        }
+
+                        try {
+                            $component->state(Crypt::decryptString($state));
+                        } catch (DecryptException) {
+                            $component->state(null);
+                        }
+                    })
+                    ->dehydrateStateUsing(function (?string $state) {
+                        if (blank($state)) {
+                            return null;
+                        }
+
+                        return Crypt::encryptString($state);
+                    }),
+
+                TextInput::make('api_settings.secret_key')
+                    ->label('Secret Key')
+                    ->password()
+                    ->revealable()
+                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::PORKBUN)
                     ->dehydrated()
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {

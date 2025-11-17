@@ -25,6 +25,7 @@ trait RegistrarService
 
         return match ($support) {
             ApiSupport::DYNADOT => true,
+            ApiSupport::PORKBUN => true,
             ApiSupport::NONE => false,
             default => false,
         };
