@@ -21,6 +21,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Muazzam\SlickScrollbar\SlickScrollbarPlugin;
 use Qopiku\FilamentSqids\Middleware\FilamentSqidsMiddleware;
 
 class StudioPanelProvider extends PanelProvider
@@ -54,16 +55,15 @@ class StudioPanelProvider extends PanelProvider
                 FilamentSqidsMiddleware::class,
             ])
             ->plugins([
+                SlickScrollbarPlugin::make()->color(Color::Emerald),
                 FilamentErrorPagesPlugin::make(),
             ])
             ->assets([
-                Css::make('custom', Vite::asset('resources/scss/studio.scss')),
-                Js::make('custom', Vite::asset('resources/js/studio.js'))->module(),
+                Css::make('studio', Vite::asset('resources/scss/studio.scss')),
+                Js::make('studio', Vite::asset('resources/js/studio.js'))->module(),
             ])
             ->maxContentWidth('full')
-            ->sidebarCollapsibleOnDesktop()
             ->breadcrumbs(false)
-            ->collapsibleNavigationGroups(false)
             ->unsavedChangesAlerts()
             ->databaseTransactions()
             ->databaseNotifications()

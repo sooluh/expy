@@ -1,5 +1,11 @@
-@import "../../../../vendor/filament/filament/resources/css/theme.css";
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
 @source '../../../../vendor/cmsmaxinc/filament-error-pages/resources/**/*.blade.php';
+@source '../../../../vendor/codewithdennis/filament-simple-alert/resources/**/*.blade.php';
+@source inline('animate-{spin,pulse,bounce}');
+
+.fi-link {
+  cursor: pointer !important;
+}
