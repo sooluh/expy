@@ -10,11 +10,4 @@ class Currency extends Model
         'code',
         'value',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'value' => 'float',
-        ];
-    }
 }

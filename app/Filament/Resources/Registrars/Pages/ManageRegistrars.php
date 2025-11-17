@@ -11,7 +11,7 @@ class ManageRegistrars extends ManageRecords
 {
     protected static string $resource = RegistrarResource::class;
 
-    protected function getHeaderActions(): array
+    protected function getActions(): array
     {
         return [
             CreateAction::make()

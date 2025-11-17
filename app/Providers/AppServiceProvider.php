@@ -40,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
                 ->deferFilters(false)
                 ->deferColumnManager(false)
                 ->deferLoading(true)
-                ->searchOnBlur(true);
+                ->searchOnBlur(false);
         });
     }
 }
