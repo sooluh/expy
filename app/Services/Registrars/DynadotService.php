@@ -8,7 +8,6 @@ use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 
 class DynadotService
@@ -31,26 +30,6 @@ class DynadotService
             'base_uri' => self::BASE_URL,
             'timeout' => 30,
         ]);
-    }
-
-    protected function getApiKey(): ?string
-    {
-        $apiSettings = $this->registrar->api_settings;
-
-        if (empty($apiSettings['api_key'])) {
-            return null;
-        }
-
-        try {
-            return Crypt::decryptString($apiSettings['api_key']);
-        } catch (Exception $e) {
-            Log::error('Failed to decrypt Dynadot API key', [
-                'registrar_id' => $this->registrar->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
     }
 
     public function isConfigured(): bool
@@ -140,14 +119,5 @@ class DynadotService
 
             throw $e;
         }
-    }
-
-    protected function parsePrice(?string $price): ?float
-    {
-        if ($price === null || $price === '' || $price === '0.00') {
-            return null;
-        }
-
-        return (float) $price;
     }
 }
