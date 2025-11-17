@@ -19,8 +19,6 @@ class RegistrarResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'tabler-server-spark';
 
-    protected static ?string $recordTitleAttribute = 'name';
-
     public static function form(Schema $schema): Schema
     {
         return RegistrarForm::configure($schema);

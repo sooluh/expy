@@ -4,7 +4,10 @@ namespace App\Providers;
 
 use App\Services\SqidsService;
 use Filament\Support\Facades\FilamentTimezone;
+use Filament\Support\Facades\FilamentView;
 use Filament\Tables\Table;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -31,6 +34,14 @@ class AppServiceProvider extends ServiceProvider
             URL::forceRootUrl($app_url);
             URL::forceScheme(explode(':', $app_url)[0]);
         }
+
+        /**
+         * filament view hooks
+         */
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::USER_MENU_BEFORE,
+            fn (): string => Blade::render('@livewire(\'currency-selector\')'),
+        );
 
         /**
          * filament table behavior

@@ -17,8 +17,6 @@ class CurrencyResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'tabler-currency-dollar';
 
-    protected static ?string $recordTitleAttribute = 'code';
-
     public static function form(Schema $schema): Schema
     {
         return CurrencyForm::configure($schema);
