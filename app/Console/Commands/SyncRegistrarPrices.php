@@ -74,11 +74,6 @@ class SyncRegistrarPrices extends Command
             $newCount = 0;
             $updatedCount = 0;
 
-            $existingFees = $registrar->fees()
-                ->pluck('tld')
-                ->mapWithKeys(fn ($tld) => [$tld => true])
-                ->toArray();
-
             foreach ($prices as $priceData) {
                 $fee = $registrar->fees()->where('tld', $priceData['tld'])->first();
 
@@ -101,7 +96,7 @@ class SyncRegistrarPrices extends Command
                 }
             }
 
-            $this->info("✓ {$registrar->name}: {$newCount} new, {$updatedCount} updated");
+            $this->info("{$registrar->name}: {$newCount} new, {$updatedCount} updated");
 
             return self::SUCCESS;
         } catch (Exception $e) {

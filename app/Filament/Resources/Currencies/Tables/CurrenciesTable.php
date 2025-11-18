@@ -15,6 +15,7 @@ class CurrenciesTable
             ->columns([
                 TextColumn::make('code')
                     ->label('Currency Code')
+                    ->badge()
                     ->sortable()
                     ->searchable(),
 

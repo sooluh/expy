@@ -2,16 +2,16 @@
 
 namespace App\Jobs;
 
-use App\Models\Currency;
+use App\Models\Rdap;
 use App\Models\User;
-use App\Services\CurrencyapiService;
+use App\Services\IanaService;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-class SyncCurrenciesJob implements ShouldQueue
+class SyncRdapsJob implements ShouldQueue
 {
     use Queueable;
 
@@ -19,45 +19,45 @@ class SyncCurrenciesJob implements ShouldQueue
         private int $userId,
     ) {}
 
-    public function handle(CurrencyapiService $currencyapiService): void
+    public function handle(IanaService $ianaService): void
     {
         $user = User::find($this->userId);
         $updatedCount = 0;
         $newCount = 0;
 
         try {
-            $currencies = $currencyapiService->latest();
+            $services = $ianaService->fetchRdapServices();
 
-            if (empty($currencies)) {
-                $this->notifyUser($user, 0, 0, 'No currencies returned from API.');
+            if (empty($services)) {
+                $this->notifyUser($user, 0, 0, 'No RDAP services returned from IANA.');
 
                 return;
             }
 
-            $totalCount = count($currencies);
+            $totalCount = count($services);
 
-            DB::transaction(function () use ($currencies, &$updatedCount, &$newCount) {
-                $existingCurrencies = Currency::query()->pluck('value', 'code')->toArray();
+            DB::transaction(function () use ($services, &$updatedCount, &$newCount) {
+                $existingRdaps = Rdap::query()->pluck('rdap', 'tld')->toArray();
 
-                foreach ($currencies as $currency) {
-                    $code = $currency['code'];
-                    $newValue = (string) $currency['value'];
+                foreach ($services as $service) {
+                    $tld = $service['tld'];
+                    $rdapUrl = $service['rdap'];
 
-                    if (isset($existingCurrencies[$code])) {
-                        if ($existingCurrencies[$code] !== $newValue) {
-                            Currency::query()
-                                ->where('code', $code)
+                    if (isset($existingRdaps[$tld])) {
+                        if ($existingRdaps[$tld] !== $rdapUrl) {
+                            Rdap::query()
+                                ->where('tld', $tld)
                                 ->update([
-                                    'value' => $newValue,
+                                    'rdap' => $rdapUrl,
                                     'updated_at' => now(),
                                 ]);
 
                             $updatedCount++;
                         }
                     } else {
-                        Currency::query()->create([
-                            'code' => $code,
-                            'value' => $newValue,
+                        Rdap::query()->create([
+                            'tld' => $tld,
+                            'rdap' => $rdapUrl,
                         ]);
 
                         $newCount++;
@@ -73,12 +73,12 @@ class SyncCurrenciesJob implements ShouldQueue
 
     private function notifyUser(User $user, int $updated, int $new, int $total = 0, ?string $error = null): void
     {
-        $title = $error ? 'Currency Sync Failed' : 'Currency Sync Completed';
+        $title = $error ? 'RDAP Sync Failed' : 'RDAP Sync Completed';
 
         if ($error) {
-            $body = "Failed to synchronize currencies: {$error}";
+            $body = "Failed to sync RDAP data: {$error}";
         } else {
-            $parts = ["Successfully synchronized {$total} currencies."];
+            $parts = ["Successfully synchronized {$total} RDAP records."];
 
             if ($new > 0) {
                 $parts[] = "{$new} new record".($new > 1 ? 's' : '').' added.';
