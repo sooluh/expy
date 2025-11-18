@@ -15,7 +15,7 @@ class IanaService
     public function __construct(?Client $client = null)
     {
         $this->client = $client ?? new Client([
-            'base_uri' => rtrim(self::BASE_URL, '/').'/',
+            'base_uri' => self::BASE_URL,
             'headers' => [
                 'Accept' => 'application/json',
             ],
@@ -26,7 +26,7 @@ class IanaService
     public function fetchRdapServices(): ?array
     {
         try {
-            $response = $this->client->get('rdap/dns.json');
+            $response = $this->client->get('/rdap/dns.json');
         } catch (GuzzleException $exception) {
             throw new RuntimeException('Failed to fetch RDAP data from IANA.', 0, $exception);
         }

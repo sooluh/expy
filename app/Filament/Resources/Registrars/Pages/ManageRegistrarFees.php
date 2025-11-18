@@ -7,7 +7,6 @@ use App\Jobs\SyncRegistrarPricesJob;
 use App\Models\Currency;
 use App\Settings\GeneralSettings;
 use BackedEnum;
-use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -40,42 +39,64 @@ class ManageRegistrarFees extends ManageRelatedRecords
         return "{$this->getOwnerRecord()->name} Fees";
     }
 
-    protected function getCurrencyRate(): float
+    protected function getDisplayCurrencyCode(): string
     {
-        try {
-            $settings = app(GeneralSettings::class);
-            $currencyCode = $settings->currency;
+        return app(GeneralSettings::class)->currency;
+    }
 
-            if ($currencyCode === 'USD') {
-                return 1.0;
-            }
+    protected function getRegistrarCurrencyCode(): string
+    {
+        return $this->getOwnerRecord()->currency->code ?? $this->getDisplayCurrencyCode();
+    }
 
-            $currency = Currency::where('code', $currencyCode)->first();
+    protected function getRegistrarToDisplayRate(): float
+    {
+        $display = $this->getDisplayCurrencyCode();
+        $registrar = $this->getRegistrarCurrencyCode();
 
-            return $currency ? (float) $currency->value : 1.0;
-        } catch (Exception $e) {
+        if ($display === $registrar) {
             return 1.0;
         }
+
+        $baseRate = $this->getRatePerUsd($registrar);
+        $targetRate = $this->getRatePerUsd($display);
+
+        if ($baseRate <= 0) {
+            return 1.0;
+        }
+
+        return $targetRate / $baseRate;
     }
 
-    protected function convertToUsd(?float $localPrice): ?float
+    protected function getRatePerUsd(string $code): float
     {
-        if ($localPrice === null) {
+        if ($code === 'USD') {
+            return 1.0;
+        }
+
+        $currency = Currency::where('code', $code)->first();
+
+        return $currency ? (float) $currency->value : 1.0;
+    }
+
+    protected function convertDisplayToRegistrar(?float $displayPrice): ?float
+    {
+        if ($displayPrice === null) {
             return null;
         }
 
-        $rate = $this->getCurrencyRate();
+        $rate = $this->getRegistrarToDisplayRate();
 
-        return $rate > 0 ? $localPrice / $rate : $localPrice;
+        return $rate > 0 ? $displayPrice / $rate : $displayPrice;
     }
 
-    protected function convertFromUsd(?float $usdPrice): ?float
+    protected function convertRegistrarToDisplay(?float $registrarPrice): ?float
     {
-        if ($usdPrice === null) {
+        if ($registrarPrice === null) {
             return null;
         }
 
-        return $usdPrice * $this->getCurrencyRate();
+        return $registrarPrice * $this->getRegistrarToDisplayRate();
     }
 
     protected function getHeaderActions(): array
@@ -123,55 +144,49 @@ class ManageRegistrarFees extends ManageRelatedRecords
                 TextInput::make('register_price')
                     ->label('Register Price')
                     ->numeric()
-                    ->prefix(fn () => app(GeneralSettings::class)->currency)
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
-                    ->step(0.01)
-                    ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                    ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                     ->columnSpan(1),
 
                 TextInput::make('renew_price')
                     ->label('Renewal Price')
                     ->numeric()
-                    ->prefix(fn () => app(GeneralSettings::class)->currency)
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
-                    ->step(0.01)
-                    ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                    ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                     ->columnSpan(1),
 
                 TextInput::make('transfer_price')
                     ->label('Transfer Price')
                     ->numeric()
-                    ->prefix(fn () => app(GeneralSettings::class)->currency)
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
-                    ->step(0.01)
-                    ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                    ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                     ->columnSpan(1),
 
                 TextInput::make('restore_price')
                     ->label('Restore Price')
                     ->numeric()
-                    ->prefix(fn () => app(GeneralSettings::class)->currency)
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
-                    ->step(0.01)
-                    ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                    ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                     ->columnSpan(1),
 
                 TextInput::make('privacy_price')
                     ->label('Privacy Protection Price')
                     ->numeric()
-                    ->prefix(fn () => app(GeneralSettings::class)->currency)
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
-                    ->step(0.01)
-                    ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                    ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                     ->columnSpan(1),
 
                 TextInput::make('misc_price')
                     ->label('Miscellaneous Price')
                     ->numeric()
-                    ->prefix(fn () => app(GeneralSettings::class)->currency)
+                    ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
-                    ->step(0.01)
-                    ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                    ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                     ->columnSpan(1),
             ]);
 
@@ -227,16 +242,6 @@ class ManageRegistrarFees extends ManageRelatedRecords
             ])
             ->recordActions([
                 EditAction::make()
-                    ->mutateRecordDataUsing(function (array $data): array {
-                        $data['register_price'] = $this->convertFromUsd($data['register_price']);
-                        $data['renew_price'] = $this->convertFromUsd($data['renew_price']);
-                        $data['transfer_price'] = $this->convertFromUsd($data['transfer_price']);
-                        $data['restore_price'] = $this->convertFromUsd($data['restore_price']);
-                        $data['privacy_price'] = $this->convertFromUsd($data['privacy_price']);
-                        $data['misc_price'] = $this->convertFromUsd($data['misc_price']);
-
-                        return $data;
-                    })
                     ->schema([
                         TextInput::make('tld')
                             ->label('TLD')
@@ -247,55 +252,49 @@ class ManageRegistrarFees extends ManageRelatedRecords
                         TextInput::make('register_price')
                             ->label('Register Price')
                             ->numeric()
-                            ->prefix(fn () => app(GeneralSettings::class)->currency)
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
-                            ->step(0.01)
-                            ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                            ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                             ->columnSpan(1),
 
                         TextInput::make('renew_price')
                             ->label('Renewal Price')
                             ->numeric()
-                            ->prefix(fn () => app(GeneralSettings::class)->currency)
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
-                            ->step(0.01)
-                            ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                            ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                             ->columnSpan(1),
 
                         TextInput::make('transfer_price')
                             ->label('Transfer Price')
                             ->numeric()
-                            ->prefix(fn () => app(GeneralSettings::class)->currency)
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
-                            ->step(0.01)
-                            ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                            ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                             ->columnSpan(1),
 
                         TextInput::make('restore_price')
                             ->label('Restore Price')
                             ->numeric()
-                            ->prefix(fn () => app(GeneralSettings::class)->currency)
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
-                            ->step(0.01)
-                            ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                            ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                             ->columnSpan(1),
 
                         TextInput::make('privacy_price')
                             ->label('Privacy Protection Price')
                             ->numeric()
-                            ->prefix(fn () => app(GeneralSettings::class)->currency)
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
-                            ->step(0.01)
-                            ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                            ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                             ->columnSpan(1),
 
                         TextInput::make('misc_price')
                             ->label('Miscellaneous Price')
                             ->numeric()
-                            ->prefix(fn () => app(GeneralSettings::class)->currency)
+                            ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
-                            ->step(0.01)
-                            ->dehydrateStateUsing(fn ($state) => $this->convertToUsd($state))
+                            ->dehydrateStateUsing(fn ($state) => $this->convertDisplayToRegistrar($state))
                             ->columnSpan(1),
                     ]),
                 DeleteAction::make(),

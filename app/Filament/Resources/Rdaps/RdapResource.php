@@ -22,6 +22,10 @@ class RdapResource extends Resource
 
     protected static ?int $navigationSort = 99;
 
+    protected static ?string $label = 'RDAP';
+
+    protected static ?string $pluralLabel = 'RDAPs';
+
     public static function form(Schema $schema): Schema
     {
         return RdapForm::configure($schema);

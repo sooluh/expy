@@ -36,6 +36,10 @@ class CurrencySelector extends Component implements HasForms
                     ->afterStateUpdated(function ($state, GeneralSettings $settings) {
                         $settings->currency = $state;
                         $settings->save();
+
+                        request()->header('Referer')
+                            ? redirect(request()->header('Referer'))
+                            : redirect()->refresh();
                     }),
             ])
             ->statePath('data');

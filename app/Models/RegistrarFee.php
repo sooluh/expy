@@ -47,28 +47,46 @@ class RegistrarFee extends Model
     protected function getCurrencyRate(): float
     {
         try {
+            /** @var GeneralSettings $settings */
             $settings = app(GeneralSettings::class);
-            $currencyCode = $settings->currency;
+            $displayCode = $settings->currency;
+            $registrarCode = $this->registrar?->currency?->code ?? $displayCode;
 
-            if ($currencyCode === 'USD') {
+            if ($registrarCode === $displayCode) {
                 return 1.0;
             }
 
-            $currency = Currency::where('code', $currencyCode)->first();
+            $baseRate = $this->getRatePerUsd($registrarCode);
+            $targetRate = $this->getRatePerUsd($displayCode);
 
-            return $currency ? (float) $currency->value : 1.0;
-        } catch (Exception $e) {
+            if ($baseRate <= 0) {
+                return 1.0;
+            }
+
+            return $targetRate / $baseRate;
+        } catch (Exception) {
             return 1.0;
         }
     }
 
-    protected function convertPrice(?float $usdPrice): ?float
+    protected function getRatePerUsd(string $code): float
     {
-        if ($usdPrice === null) {
+        if ($code === 'USD') {
+            return 1.0;
+        }
+
+        $currency = Currency::where('code', $code)->first();
+
+        return $currency ? (float) $currency->value : 1.0;
+    }
+
+    protected function convertPrice(?float $storedPrice): ?float
+    {
+        if ($storedPrice === null) {
             return null;
         }
 
-        return $usdPrice * $this->getCurrencyRate();
+        return $storedPrice * $this->getCurrencyRate();
     }
 
     protected function registerPriceConverted(): Attribute

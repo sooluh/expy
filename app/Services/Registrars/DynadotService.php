@@ -4,6 +4,7 @@ namespace App\Services\Registrars;
 
 use App\Concerns\RegistrarService;
 use App\Models\Registrar;
+use Carbon\Carbon;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -26,6 +27,7 @@ class DynadotService
     {
         $this->registrar = $registrar;
         $this->apiKey = $this->getApiKey();
+
         $this->client = new Client([
             'base_uri' => self::BASE_URL,
             'timeout' => 30,
@@ -95,6 +97,7 @@ class DynadotService
             if (($data['code'] ?? null) !== 200) {
                 $message = $data['message'] ?? 'Unknown error';
                 $code = $data['code'] ?? 'no code';
+
                 throw new Exception("API Error (code: {$code}): {$message}");
             }
 
@@ -113,6 +116,63 @@ class DynadotService
             });
         } catch (GuzzleException|Exception $e) {
             Log::error('Failed to fetch Dynadot prices', [
+                'registrar_id' => $this->registrar->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    public function getDomains(): Collection
+    {
+        if (! $this->isConfigured()) {
+            throw new Exception('Dynadot API is not properly configured');
+        }
+
+        try {
+            $response = $this->client->get('/restful/v1/domains', [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Authorization' => "Bearer {$this->apiKey}",
+                ],
+                'query' => [
+                    'currency' => 'usd',
+                ],
+            ]);
+
+            $body = $response->getBody()->getContents();
+            $data = json_decode($body, true);
+
+            if ($response->getStatusCode() !== 200) {
+                throw new Exception("API request failed: {$response->getStatusCode()}");
+            }
+
+            if (($data['code'] ?? null) !== 200) {
+                $message = $data['message'] ?? 'Unknown error';
+                $code = $data['code'] ?? 'no code';
+
+                throw new Exception("API Error (code: {$code}): {$message}");
+            }
+
+            $domainList = $data['data']['domainInfo'] ?? [];
+
+            return collect($domainList)->map(function ($item) {
+                $nameservers = collect($item['glueInfo']['name_server_settings']['name_servers'] ?? [])
+                    ->map(fn ($ns) => $ns['server_name'])
+                    ->toArray();
+
+                return [
+                    'domain_name' => $item['domainName'],
+                    'registration_date' => Carbon::createFromTimestamp($item['registration']),
+                    'expiration_date' => Carbon::createFromTimestamp($item['expiration']),
+                    'nameservers' => $nameservers,
+                    'security_lock' => strtolower($item['locked']) === 'yes',
+                    'whois_privacy' => in_array(strtolower($item['privacy']), ['full privacy', 'partial privacy']),
+                ];
+            });
+        } catch (GuzzleException|Exception $e) {
+            Log::error('Failed to fetch Dynadot domains', [
                 'registrar_id' => $this->registrar->id,
                 'error' => $e->getMessage(),
             ]);

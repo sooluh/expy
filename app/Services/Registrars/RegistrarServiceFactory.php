@@ -4,6 +4,7 @@ namespace App\Services\Registrars;
 
 use App\Enums\ApiSupport;
 use App\Models\Registrar;
+use App\Services\ScrapingantService;
 
 class RegistrarServiceFactory
 {
@@ -12,6 +13,7 @@ class RegistrarServiceFactory
         return match ($registrar->api_support) {
             ApiSupport::DYNADOT => new DynadotService($registrar),
             ApiSupport::PORKBUN => new PorkbunService($registrar),
+            ApiSupport::IDWEBHOST => new IdwebhostService($registrar, app(ScrapingantService::class)),
             ApiSupport::NONE => null,
             default => null,
         };

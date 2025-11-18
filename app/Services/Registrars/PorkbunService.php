@@ -4,6 +4,7 @@ namespace App\Services\Registrars;
 
 use App\Concerns\RegistrarService;
 use App\Models\Registrar;
+use Carbon\Carbon;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -29,6 +30,7 @@ class PorkbunService
         $this->registrar = $registrar;
         $this->apiKey = $this->getApiKey();
         $this->secretKey = $this->getSecretKey();
+
         $this->client = new Client([
             'base_uri' => self::BASE_URL,
             'timeout' => 30,
@@ -90,6 +92,7 @@ class PorkbunService
 
             if (($data['status'] ?? null) !== 'SUCCESS') {
                 $message = $data['message'] ?? 'Unknown error';
+
                 throw new Exception("API Error: {$message}");
             }
 
@@ -113,6 +116,62 @@ class PorkbunService
                 ->values();
         } catch (GuzzleException|Exception $e) {
             Log::error('Failed to fetch Porkbun prices', [
+                'registrar_id' => $this->registrar->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    public function getDomains(): Collection
+    {
+        if (! $this->isConfigured()) {
+            throw new Exception('Porkbun API is not properly configured');
+        }
+
+        try {
+            $response = $this->client->get('/api/json/v3/domain/listAll', [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Authorization' => "Bearer {$this->apiKey}",
+                ],
+                'json' => [
+                    'secretapikey' => $this->secretKey,
+                    'apikey' => $this->apiKey,
+                    'start' => '0',
+                    'includeLabels' => 'no',
+                ],
+            ]);
+
+            $body = $response->getBody()->getContents();
+            $data = json_decode($body, true);
+
+            if ($response->getStatusCode() !== 200) {
+                throw new Exception("API request failed: {$response->getStatusCode()}");
+            }
+
+            if (($data['status'] ?? null) !== 'SUCCESS') {
+                $message = $data['message'] ?? 'Unknown error';
+                $status = $data['status'] ?? 'no status';
+
+                throw new Exception("API Error (status: {$status}): {$message}");
+            }
+
+            $domainList = $data['domains'] ?? [];
+
+            return collect($domainList)->map(function ($item) {
+                return [
+                    'domain_name' => $item['domain'],
+                    'registration_date' => Carbon::createFromTimestamp($item['createDate']),
+                    'expiration_date' => Carbon::createFromTimestamp($item['expireDate']),
+                    'nameservers' => [],
+                    'security_lock' => $item['securityLock'] === '1',
+                    'whois_privacy' => $item['whoisPrivacy'] === '1',
+                ];
+            });
+        } catch (GuzzleException|Exception $e) {
+            Log::error('Failed to fetch Porkbun domains', [
                 'registrar_id' => $this->registrar->id,
                 'error' => $e->getMessage(),
             ]);

@@ -12,6 +12,7 @@ enum ApiSupport: int implements HasLabel
     case PORKBUN = 3;
     // case NAMECHEAP = 4;
     // case GODADDY = 5;
+    case IDWEBHOST = 6;
 
     public function getLabel(): string
     {
@@ -22,6 +23,7 @@ enum ApiSupport: int implements HasLabel
             self::PORKBUN => 'Porkbun',
             // self::NAMECHEAP => 'Namecheap',
             // self::GODADDY => 'GoDaddy',
+            self::IDWEBHOST => 'IDwebhost',
         };
     }
 }
