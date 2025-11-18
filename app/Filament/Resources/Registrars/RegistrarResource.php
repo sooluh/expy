@@ -14,12 +14,17 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use UnitEnum;
 
 class RegistrarResource extends Resource
 {
     protected static ?string $model = Registrar::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'tabler-server-spark';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Domain Management';
+
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {

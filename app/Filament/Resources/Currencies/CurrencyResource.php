@@ -10,12 +10,17 @@ use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class CurrencyResource extends Resource
 {
     protected static ?string $model = Currency::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'tabler-currency-dollar';
+
+    protected static string|UnitEnum|null $navigationGroup = 'External Integrations';
+
+    protected static ?int $navigationSort = 100;
 
     public static function form(Schema $schema): Schema
     {
