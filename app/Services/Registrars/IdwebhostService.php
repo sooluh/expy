@@ -5,13 +5,16 @@ namespace App\Services\Registrars;
 use App\Concerns\RegistrarService;
 use App\Models\Registrar;
 use App\Services\ScrapingantService;
+use Carbon\Carbon;
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class IdwebhostService
 {
@@ -21,21 +24,24 @@ class IdwebhostService
 
     protected Registrar $registrar;
 
+    protected ?string $cookies;
+
     protected Client $client;
 
-    protected ?ScrapingantService $scrapingantService = null;
+    protected ?ScrapingantService $scrapingantService;
 
     protected bool $scrapingantEnabled = false;
 
     public function __construct(Registrar $registrar, ScrapingantService $scrapingantService)
     {
         $this->registrar = $registrar;
+        $this->cookies = $this->getCookies();
         $this->scrapingantService = $scrapingantService;
 
         try {
             $this->scrapingantService->getApiKey();
             $this->scrapingantEnabled = true;
-        } catch (Exception $e) {
+        } catch (Throwable) {
             $this->scrapingantEnabled = false;
         }
 
@@ -52,21 +58,42 @@ class IdwebhostService
 
     public function validateCredentials(): bool
     {
-        return true;
+        $url = 'https://member.idwebhost.com/clientarea.php';
+
+        if (empty($this->cookies)) {
+            return false;
+        }
+
+        try {
+            $html = $this->fetchHtml($url, waitForSelector: null, useCookies: true);
+
+            return is_string($html) && str_contains($html, 'Selamat Datang');
+        } catch (Exception|GuzzleException $e) {
+            Log::error('Failed to validate IDwebhost credentials', [
+                'registrar_id' => $this->registrar->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     public function getPrices(): Collection
     {
         try {
-            $html = $this->fetchPricesPageHtml();
+            $html = $this->fetchHtml(
+                'https://idwebhost.com/domain-murah',
+                waitForSelector: 'option[value=""]',
+                useCookies: false,
+            );
 
             if (! is_string($html) || trim($html) === '') {
-                throw new Exception('Empty HTML response from Idwebhost.');
+                throw new Exception('Empty HTML response from IDwebhost.');
             }
 
             return $this->parsePricesFromHtml($html);
         } catch (GuzzleException|Exception $e) {
-            Log::error('Failed to fetch Idwebhost prices', [
+            Log::error('Failed to fetch IDwebhost prices', [
                 'registrar_id' => $this->registrar->id ?? null,
                 'error' => $e->getMessage(),
             ]);
@@ -77,38 +104,83 @@ class IdwebhostService
 
     public function getDomains(): Collection
     {
-        return collect();
+        if (empty($this->cookies)) {
+            throw new Exception('IDwebhost cookies are not configured');
+        }
+
+        try {
+            $html = $this->fetchHtml(
+                'https://member.idwebhost.com/clientarea.php?action=domains',
+                waitForSelector: 'table#tableDomainsList',
+                useCookies: true,
+            );
+
+            if (! is_string($html) || trim($html) === '') {
+                throw new Exception('Empty HTML response from IDwebhost domains page.');
+            }
+
+            return $this->parseDomainsFromHtml($html);
+        } catch (GuzzleException|Exception $e) {
+            Log::error('Failed to fetch IDwebhost domains', [
+                'registrar_id' => $this->registrar->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
     }
 
-    protected function fetchPricesPageHtml(): string
+    protected function fetchHtml(string $url, ?string $waitForSelector = null, bool $useCookies = false): string
     {
-        $url = 'https://idwebhost.com/domain-murah';
+        $cookies = $useCookies ? $this->normalizeCookies($this->cookies) : null;
 
         if ($this->scrapingantEnabled && $this->scrapingantService !== null) {
             try {
-                $html = $this->scrapingantService->scrape($url, 'option[value=""]');
+                $html = $this->scrapingantService->scrape(
+                    $url,
+                    $waitForSelector,
+                    $cookies,
+                );
 
                 if (is_string($html) && trim($html) !== '') {
                     return $html;
                 }
             } catch (Exception $e) {
-                Log::warning('ScrapingAnt failed for Idwebhost, falling back to direct HTTP', [
+                Log::warning('ScrapingAnt failed, falling back to direct HTTP', [
                     'registrar_id' => $this->registrar->id ?? null,
+                    'url' => $url,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        $response = $this->client->get('/domain-murah');
+        $headers = [
+            'Accept' => 'text/html,application/xhtml+xml',
+        ];
+
+        if ($cookies) {
+            $headers['Cookie'] = $cookies;
+        }
+
+        $response = $this->client->get($url, ['headers' => $headers]);
 
         if ($response->getStatusCode() !== 200) {
-            throw new Exception("Idwebhost page request failed: {$response->getStatusCode()}");
+            throw new Exception("IDwebhost request failed ({$url}): {$response->getStatusCode()}");
         }
 
         return $response->getBody()->getContents();
     }
 
-    protected function parsePricesFromHtml(string $html): Collection
+    protected function normalizeCookies(?string $cookies): ?string
+    {
+        if ($cookies === null || trim($cookies) === '') {
+            return null;
+        }
+
+        return preg_replace('/\s*;\s*/', '; ', trim($cookies)) ?: $cookies;
+    }
+
+    protected function createXPath(string $html): DOMXPath
     {
         $dom = new DOMDocument;
 
@@ -117,7 +189,12 @@ class IdwebhostService
         libxml_clear_errors();
         libxml_use_internal_errors($internalErrors);
 
-        $xpath = new DOMXPath($dom);
+        return new DOMXPath($dom);
+    }
+
+    protected function parsePricesFromHtml(string $html): Collection
+    {
+        $xpath = $this->createXPath($html);
 
         $options = $xpath->query(
             '//select[@data-hs-select and option[@value=""]]/option[@value != ""]'
@@ -130,7 +207,7 @@ class IdwebhostService
         $result = [];
 
         foreach ($options as $option) {
-            /** @var \DOMElement $option */
+            /** @var DOMElement $option */
             $value = trim($option->getAttribute('value'));
 
             if ($value === '') {
@@ -145,20 +222,15 @@ class IdwebhostService
 
             $dataAttr = $option->getAttribute('data-hs-select-option');
             $priceText = $this->extractDescriptionFromDataAttribute($dataAttr);
+            $priceValue = $this->parseIdrPrice($priceText);
 
-            if ($priceText === null) {
-                continue;
-            }
-
-            $price = $this->parseIdrPrice($priceText);
-
-            if ($price === null) {
+            if ($priceValue === null) {
                 continue;
             }
 
             $result[] = [
                 'tld' => $tld,
-                'register_price' => $price,
+                'register_price' => $priceValue,
                 'renew_price' => null,
                 'transfer_price' => null,
                 'restore_price' => null,
@@ -217,5 +289,106 @@ class IdwebhostService
         }
 
         return (float) $clean;
+    }
+
+    protected function parseDomainsFromHtml(string $html): Collection
+    {
+        $xpath = $this->createXPath($html);
+
+        $rows = $xpath->query('//table[@id="tableDomainsList"]/tbody/tr');
+
+        if (! $rows || $rows->length === 0) {
+            return collect();
+        }
+
+        $domains = [];
+
+        foreach ($rows as $tr) {
+            /** @var DOMElement $tr */
+            $tds = $tr->getElementsByTagName('td');
+
+            if ($tds->length < 4) {
+                continue;
+            }
+
+            $domainTd = $tds->item(1);
+            $domainName = $this->extractDomainNameFromCell($domainTd);
+
+            if ($domainName === null || $domainName === '') {
+                continue;
+            }
+
+            $activationTd = $tds->item(2);
+            $registrationDate = $this->extractDateFromCell($activationTd);
+
+            $expiryTd = $tds->item(3);
+            $expirationDate = $this->extractDateFromCell($expiryTd);
+
+            $domains[] = [
+                'domain_name' => $domainName,
+                'registration_date' => $registrationDate,
+                'expiration_date' => $expirationDate,
+                'nameservers' => [],
+                'security_lock' => null,
+                'whois_privacy' => null,
+            ];
+        }
+
+        return collect($domains);
+    }
+
+    protected function extractDomainNameFromCell(?DOMElement $td): ?string
+    {
+        if ($td === null) {
+            return null;
+        }
+
+        $links = $td->getElementsByTagName('a');
+
+        if ($links->length === 0) {
+            return trim($td->textContent ?? '');
+        }
+
+        return trim($links->item(0)->textContent ?? '');
+    }
+
+    protected function extractDateFromCell(?DOMElement $td): ?Carbon
+    {
+        if ($td === null) {
+            return null;
+        }
+
+        $spans = $td->getElementsByTagName('span');
+
+        foreach ($spans as $span) {
+            /** @var DOMElement $span */
+            $class = $span->getAttribute('class');
+
+            if (str_contains($class, 'hidden')) {
+                $raw = trim($span->textContent ?? '');
+                if ($raw !== '') {
+                    try {
+                        return Carbon::parse($raw);
+                    } catch (Throwable) {
+                    }
+                }
+            }
+        }
+
+        $visible = trim($td->textContent ?? '');
+
+        if ($visible === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('d/m/Y', $visible);
+        } catch (Throwable) {
+            try {
+                return Carbon::parse($visible);
+            } catch (Throwable) {
+                return null;
+            }
+        }
     }
 }

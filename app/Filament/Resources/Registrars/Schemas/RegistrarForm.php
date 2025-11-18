@@ -49,11 +49,17 @@ class RegistrarForm
                     ->default(ApiSupport::NONE)
                     ->afterStateUpdated(function (callable $set, ApiSupport|int|string|null $state): void {
                         $resolved = self::resolveApiSupport($state);
+
                         if ($resolved !== ApiSupport::DYNADOT) {
                             $set('api_settings.api_key', null);
                         }
+
                         if ($resolved !== ApiSupport::PORKBUN) {
                             $set('api_settings.secret_key', null);
+                        }
+
+                        if ($resolved !== ApiSupport::IDWEBHOST) {
+                            $set('api_settings.cookies', null);
                         }
                     }),
 
@@ -87,6 +93,32 @@ class RegistrarForm
                     ->password()
                     ->revealable()
                     ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::PORKBUN)
+                    ->dehydrated()
+                    ->afterStateHydrated(function (TextInput $component, $state): void {
+                        if (blank($state)) {
+                            return;
+                        }
+
+                        try {
+                            $component->state(Crypt::decryptString($state));
+                        } catch (DecryptException) {
+                            $component->state(null);
+                        }
+                    })
+                    ->dehydrateStateUsing(function (?string $state) {
+                        if (blank($state)) {
+                            return null;
+                        }
+
+                        return Crypt::encryptString($state);
+                    }),
+
+                TextInput::make('api_settings.cookies')
+                    ->label('Cookies')
+                    ->belowContent('Format: cookie_name_1=cookie_value_1;cookie_name_2=...')
+                    ->password()
+                    ->revealable()
+                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::IDWEBHOST)
                     ->dehydrated()
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {

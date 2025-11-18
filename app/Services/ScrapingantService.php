@@ -23,7 +23,7 @@ class ScrapingantService
         ]);
     }
 
-    public function scrape(string $url, ?string $waitForSelector = null): ?string
+    public function scrape(string $url, ?string $waitForSelector = null, ?string $cookies = null): ?string
     {
         $query = [
             'url' => $url,
@@ -32,6 +32,10 @@ class ScrapingantService
 
         if ($waitForSelector !== null) {
             $query['wait_for_selector'] = $waitForSelector;
+        }
+
+        if ($cookies !== null && trim($cookies) !== '') {
+            $query['cookies'] = $cookies;
         }
 
         try {

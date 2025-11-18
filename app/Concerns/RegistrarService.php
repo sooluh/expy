@@ -76,6 +76,26 @@ trait RegistrarService
         }
     }
 
+    protected function getCookies(): ?string
+    {
+        $apiSettings = $this->registrar->api_settings;
+
+        if (empty($apiSettings['cookies'])) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($apiSettings['cookies']);
+        } catch (Exception $e) {
+            Log::error('Failed to decrypt cookies', [
+                'registrar_id' => $this->registrar->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
     protected function parsePrice(?string $price): ?float
     {
         if ($price === null || $price === '' || $price === '0.00') {
