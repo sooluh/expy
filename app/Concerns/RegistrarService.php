@@ -2,7 +2,7 @@
 
 namespace App\Concerns;
 
-use App\Enums\ApiSupport;
+use App\Enums\RegistrarCode;
 use App\Models\Currency;
 use App\Settings\GeneralSettings;
 use Exception;
@@ -11,17 +11,17 @@ use Illuminate\Support\Facades\Log;
 
 trait RegistrarService
 {
-    protected static function resolveApiSupport(mixed $value): ApiSupport
+    protected static function resolveApiSupport(mixed $value): RegistrarCode
     {
-        if ($value instanceof ApiSupport) {
+        if ($value instanceof RegistrarCode) {
             return $value;
         }
 
         if (is_string($value)) {
-            return ApiSupport::tryFrom($value) ?? ApiSupport::NONE;
+            return RegistrarCode::tryFrom($value) ?? RegistrarCode::NONE;
         }
 
-        return ApiSupport::NONE;
+        return RegistrarCode::NONE;
     }
 
     protected static function requiresApiKey(mixed $apiSupport): bool
@@ -29,9 +29,9 @@ trait RegistrarService
         $support = static::resolveApiSupport($apiSupport);
 
         return match ($support) {
-            ApiSupport::DYNADOT => true,
-            ApiSupport::PORKBUN => true,
-            ApiSupport::NONE => false,
+            RegistrarCode::DYNADOT => true,
+            RegistrarCode::PORKBUN => true,
+            RegistrarCode::NONE => false,
             default => false,
         };
     }

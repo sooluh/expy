@@ -29,7 +29,6 @@ class CurrencySelector extends Component implements HasForms
                     ->hiddenLabel()
                     ->options(Currency::query()->pluck('code', 'code'))
                     ->searchable()
-                    ->preload()
                     ->native(false)
                     ->live()
                     ->required()

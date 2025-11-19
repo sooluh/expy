@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\ApiSupport;
+use App\Enums\RegistrarCode;
 use App\Services\Registrars\RegistrarServiceFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,7 +26,7 @@ class Registrar extends Model
     protected function casts(): array
     {
         return [
-            'api_support' => ApiSupport::class,
+            'api_support' => RegistrarCode::class,
             'api_settings' => 'array',
         ];
     }

@@ -2,8 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Clusters\Settings\Pages\Profile;
 use App\Filament\Pages\Login;
 use Cmsmaxinc\FilamentErrorPages\FilamentErrorPagesPlugin;
+use DateTimeZone;
+use Filament\Actions\Action;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -14,11 +18,13 @@ use Filament\PanelProvider;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\Support\Colors\Color;
+use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Muazzam\SlickScrollbar\SlickScrollbarPlugin;
@@ -42,6 +48,7 @@ class StudioPanelProvider extends PanelProvider
             ->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\Filament\Clusters')
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->authMiddleware([Authenticate::class])
+            ->multiFactorAuthentication([AppAuthentication::make()->recoverable()])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -54,14 +61,40 @@ class StudioPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
                 FilamentSqidsMiddleware::class,
             ])
+            ->userMenuItems([
+                'profile' => Action::make('profile')
+                    ->label(fn (): string => Auth::user()?->name ?? 'Profil')
+                    ->icon('heroicon-o-user-circle')
+                    ->url(fn () => Profile::getUrl())
+                    ->sort(-100),
+            ])
             ->plugins([
                 SlickScrollbarPlugin::make()->color(Color::Emerald),
                 FilamentErrorPagesPlugin::make(),
             ])
             ->assets([
-                Css::make('studio', Vite::asset('resources/scss/studio.scss')),
-                Js::make('studio', Vite::asset('resources/js/studio.js'))->module(),
+                Css::make('custom', Vite::asset('resources/scss/studio.scss')),
+                Js::make('custom', Vite::asset('resources/js/studio.js'))->module(),
             ])
+            ->bootUsing(function (Panel $panel) {
+                /** @var User $user */
+                $user = Auth::user();
+                $timezone = config('app.timezone');
+
+                if ($user && is_array($user->settings ?? null)) {
+                    $candidate = $user->settings['timezone'] ?? null;
+
+                    if (is_string($candidate)) {
+                        $validTimezones = DateTimeZone::listIdentifiers();
+
+                        if (in_array($candidate, $validTimezones, true)) {
+                            $timezone = $candidate;
+                        }
+                    }
+                }
+
+                FilamentTimezone::set($timezone);
+            })
             ->maxContentWidth('full')
             ->breadcrumbs(false)
             ->unsavedChangesAlerts()

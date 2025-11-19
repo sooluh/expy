@@ -4,7 +4,7 @@ namespace App\Enums;
 
 use Filament\Support\Contracts\HasLabel;
 
-enum ApiSupport: int implements HasLabel
+enum RegistrarCode: int implements HasLabel
 {
     case NONE = 0;
     // case CLOUDFLARE = 1;

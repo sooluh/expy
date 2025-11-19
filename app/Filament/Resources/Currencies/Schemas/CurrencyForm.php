@@ -13,12 +13,12 @@ class CurrencyForm
             ->columns(1)
             ->components([
                 TextInput::make('code')
-                    ->label('Currency Code')
+                    ->label('Currency code')
                     ->required()
                     ->unique(table: 'currencies', ignorable: fn ($record) => $record),
 
                 TextInput::make('value')
-                    ->label('Exchange Rate (1 USD)')
+                    ->label('Exchange rate (1 USD)')
                     ->required()
                     ->numeric(),
             ]);

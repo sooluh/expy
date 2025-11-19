@@ -126,8 +126,6 @@ class ManageRegistrarFees extends ManageRelatedRecords
         }
 
         $actions[] = CreateAction::make()
-            ->label('New Fee')
-            ->modalHeading('Add TLD Fee')
             ->modalWidth(Width::Large)
             ->schema([
                 TextInput::make('tld')
@@ -142,7 +140,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                     ->maxLength(50),
 
                 TextInput::make('register_price')
-                    ->label('Register Price')
+                    ->label('Register price')
                     ->numeric()
                     ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
@@ -150,7 +148,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                     ->columnSpan(1),
 
                 TextInput::make('renew_price')
-                    ->label('Renewal Price')
+                    ->label('Renewal price')
                     ->numeric()
                     ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
@@ -158,7 +156,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                     ->columnSpan(1),
 
                 TextInput::make('transfer_price')
-                    ->label('Transfer Price')
+                    ->label('Transfer price')
                     ->numeric()
                     ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
@@ -166,7 +164,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                     ->columnSpan(1),
 
                 TextInput::make('restore_price')
-                    ->label('Restore Price')
+                    ->label('Restore price')
                     ->numeric()
                     ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
@@ -174,7 +172,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                     ->columnSpan(1),
 
                 TextInput::make('privacy_price')
-                    ->label('Privacy Protection Price')
+                    ->label('Privacy protection price')
                     ->numeric()
                     ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
@@ -182,7 +180,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                     ->columnSpan(1),
 
                 TextInput::make('misc_price')
-                    ->label('Miscellaneous Price')
+                    ->label('Miscellaneous price')
                     ->numeric()
                     ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                     ->minValue(0)
@@ -242,6 +240,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
             ])
             ->recordActions([
                 EditAction::make()
+                    ->modalWidth(Width::Large)
                     ->schema([
                         TextInput::make('tld')
                             ->label('TLD')
@@ -250,7 +249,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                             ->dehydrated(false),
 
                         TextInput::make('register_price')
-                            ->label('Register Price')
+                            ->label('Register price')
                             ->numeric()
                             ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
@@ -258,7 +257,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                             ->columnSpan(1),
 
                         TextInput::make('renew_price')
-                            ->label('Renewal Price')
+                            ->label('Renewal price')
                             ->numeric()
                             ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
@@ -266,7 +265,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                             ->columnSpan(1),
 
                         TextInput::make('transfer_price')
-                            ->label('Transfer Price')
+                            ->label('Transfer price')
                             ->numeric()
                             ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
@@ -274,7 +273,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                             ->columnSpan(1),
 
                         TextInput::make('restore_price')
-                            ->label('Restore Price')
+                            ->label('Restore price')
                             ->numeric()
                             ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
@@ -282,7 +281,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                             ->columnSpan(1),
 
                         TextInput::make('privacy_price')
-                            ->label('Privacy Protection Price')
+                            ->label('Privacy protection price')
                             ->numeric()
                             ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)
@@ -290,7 +289,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
                             ->columnSpan(1),
 
                         TextInput::make('misc_price')
-                            ->label('Miscellaneous Price')
+                            ->label('Miscellaneous price')
                             ->numeric()
                             ->prefix(fn () => $this->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency)
                             ->minValue(0)

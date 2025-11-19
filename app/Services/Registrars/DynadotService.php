@@ -105,7 +105,7 @@ class DynadotService
 
             return collect($tldList)->map(function ($item) {
                 return [
-                    'tld' => $item['tld'],
+                    'tld' => ltrim($item['tld'], '.'),
                     'register_price' => $this->parsePrice($item['allYearsRegisterPrice'][0] ?? null),
                     'renew_price' => $this->parsePrice($item['allYearsRenewPrice'][0] ?? null),
                     'transfer_price' => $this->parsePrice($item['transferPrice'] ?? null),

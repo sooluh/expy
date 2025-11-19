@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Filament\Resources\Registrars\Pages;
+namespace App\Filament\Resources\Domains\Pages;
 
-use App\Filament\Resources\Registrars\RegistrarResource;
+use App\Filament\Resources\Domains\DomainResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 use Filament\Support\Enums\Width;
 
-class ManageRegistrars extends ManageRecords
+class ManageDomains extends ManageRecords
 {
-    protected static string $resource = RegistrarResource::class;
+    protected static string $resource = DomainResource::class;
 
     protected function getActions(): array
     {

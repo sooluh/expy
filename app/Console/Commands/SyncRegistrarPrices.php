@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\ApiSupport;
+use App\Enums\RegistrarCode;
 use App\Models\Registrar;
 use Exception;
 use Illuminate\Console\Command;
@@ -26,7 +26,7 @@ class SyncRegistrarPrices extends Command
 
     protected function syncAllRegistrars(): int
     {
-        $registrars = Registrar::where('api_support', '!=', ApiSupport::NONE)->get();
+        $registrars = Registrar::where('api_support', '!=', RegistrarCode::NONE)->get();
 
         if ($registrars->isEmpty()) {
             $this->info('No registrars with API support found.');

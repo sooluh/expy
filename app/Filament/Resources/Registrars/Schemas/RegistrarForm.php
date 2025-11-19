@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Registrars\Schemas;
 
 use App\Concerns\RegistrarService;
-use App\Enums\ApiSupport;
+use App\Enums\RegistrarCode;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
@@ -20,7 +20,7 @@ class RegistrarForm
             ->columns(1)
             ->components([
                 TextInput::make('name')
-                    ->label('Registrar Name')
+                    ->label('Registrar name')
                     ->required()
                     ->maxLength(255),
 
@@ -41,33 +41,33 @@ class RegistrarForm
                     ->nullable(),
 
                 Select::make('api_support')
-                    ->label('API Support')
+                    ->label('API support')
                     ->required()
                     ->native(false)
                     ->live()
-                    ->options(ApiSupport::class)
-                    ->default(ApiSupport::NONE)
-                    ->afterStateUpdated(function (callable $set, ApiSupport|int|string|null $state): void {
+                    ->options(RegistrarCode::class)
+                    ->default(RegistrarCode::NONE)
+                    ->afterStateUpdated(function (callable $set, RegistrarCode|int|string|null $state): void {
                         $resolved = self::resolveApiSupport($state);
 
-                        if ($resolved !== ApiSupport::DYNADOT) {
+                        if ($resolved !== RegistrarCode::DYNADOT) {
                             $set('api_settings.api_key', null);
                         }
 
-                        if ($resolved !== ApiSupport::PORKBUN) {
+                        if ($resolved !== RegistrarCode::PORKBUN) {
                             $set('api_settings.secret_key', null);
                         }
 
-                        if ($resolved !== ApiSupport::IDWEBHOST) {
+                        if ($resolved !== RegistrarCode::IDWEBHOST) {
                             $set('api_settings.cookies', null);
                         }
                     }),
 
                 TextInput::make('api_settings.api_key')
-                    ->label(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::DYNADOT ? 'API Production Key' : 'API Key')
+                    ->label(fn (callable $get) => self::resolveApiSupport($get('api_support')) === RegistrarCode::DYNADOT ? 'API production key' : 'API key')
                     ->password()
                     ->revealable()
-                    ->visible(fn (callable $get) => in_array(self::resolveApiSupport($get('api_support')), [ApiSupport::DYNADOT, ApiSupport::PORKBUN]))
+                    ->visible(fn (callable $get) => in_array(self::resolveApiSupport($get('api_support')), [RegistrarCode::DYNADOT, RegistrarCode::PORKBUN]))
                     ->dehydrated()
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {
@@ -89,10 +89,10 @@ class RegistrarForm
                     }),
 
                 TextInput::make('api_settings.secret_key')
-                    ->label('Secret Key')
+                    ->label('Secret key')
                     ->password()
                     ->revealable()
-                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::PORKBUN)
+                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === RegistrarCode::PORKBUN)
                     ->dehydrated()
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {
@@ -118,7 +118,7 @@ class RegistrarForm
                     ->belowContent('Format: cookie_name_1=cookie_value_1;cookie_name_2=...')
                     ->password()
                     ->revealable()
-                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === ApiSupport::IDWEBHOST)
+                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === RegistrarCode::IDWEBHOST)
                     ->dehydrated()
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {

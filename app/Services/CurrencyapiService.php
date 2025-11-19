@@ -9,7 +9,7 @@ use RuntimeException;
 
 class CurrencyapiService
 {
-    public const BASE_URL = 'https://api.currencyapi.com/v3';
+    public const BASE_URL = 'https://api.currencyapi.com';
 
     private Client $client;
 
@@ -29,7 +29,7 @@ class CurrencyapiService
     public function latest(): array
     {
         try {
-            $response = $this->client->get('/latest', [
+            $response = $this->client->get('/v3/latest', [
                 'headers' => [
                     'apikey' => $this->getApiKey(),
                 ],

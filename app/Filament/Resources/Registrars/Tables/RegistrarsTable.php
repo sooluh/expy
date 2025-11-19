@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Registrars\Tables;
 
-use App\Enums\ApiSupport;
+use App\Enums\RegistrarCode;
 use App\Filament\Resources\Registrars\RegistrarResource;
 use App\Models\Registrar;
 use Filament\Actions\Action;
@@ -31,7 +31,7 @@ class RegistrarsTable
                     ->tooltip(fn ($state) => $state ?: null),
 
                 TextColumn::make('name')
-                    ->label('Registrar Name')
+                    ->label('Registrar name')
                     ->searchable()
                     ->sortable(),
 
@@ -42,8 +42,8 @@ class RegistrarsTable
                     ->sortable(),
 
                 IconColumn::make('api_support')
-                    ->label('API Support')
-                    ->state(fn ($record) => $record->api_support !== ApiSupport::NONE)
+                    ->label('API support')
+                    ->state(fn ($record) => $record->api_support !== RegistrarCode::NONE)
                     ->boolean()
                     ->sortable(),
 

@@ -14,17 +14,17 @@ class CurrenciesTable
         return $table
             ->columns([
                 TextColumn::make('code')
-                    ->label('Currency Code')
+                    ->label('Currency code')
                     ->badge()
                     ->sortable()
                     ->searchable(),
 
                 TextColumn::make('value')
-                    ->label('Exchange Rate')
+                    ->label('Exchange rate')
                     ->sortable(),
 
                 TextColumn::make('updated_at')
-                    ->label('Last Updated')
+                    ->label('Last updated')
                     ->dateTime('M d, Y H:i')
                     ->sortable(),
             ])

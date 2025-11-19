@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\ApiSupport;
+use App\Enums\RegistrarCode;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('url');
             $table->text('notes')->nullable();
-            $table->tinyInteger('api_support')->nullable()->default(ApiSupport::NONE->value);
+            $table->tinyInteger('api_support')->nullable()->default(RegistrarCode::NONE->value);
             $table->json('api_settings')->nullable()->default('{}');
             $table->timestamps();
             $table->softDeletes();
