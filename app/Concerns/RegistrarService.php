@@ -38,6 +38,7 @@ trait RegistrarService
 
     protected function getApiKey(): ?string
     {
+        $this->registrar->refresh();
         $apiSettings = $this->registrar->api_settings;
 
         if (empty($apiSettings['api_key'])) {
@@ -58,6 +59,7 @@ trait RegistrarService
 
     protected function getSecretKey(): ?string
     {
+        $this->registrar->refresh();
         $apiSettings = $this->registrar->api_settings;
 
         if (empty($apiSettings['secret_key'])) {
@@ -78,6 +80,7 @@ trait RegistrarService
 
     protected function getCookies(): ?string
     {
+        $this->registrar->refresh();
         $apiSettings = $this->registrar->api_settings;
 
         if (empty($apiSettings['cookies'])) {

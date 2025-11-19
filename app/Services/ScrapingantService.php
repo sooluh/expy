@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Settings\ScrapingantSettings;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class ScrapingantService
@@ -25,9 +27,11 @@ class ScrapingantService
 
     public function scrape(string $url, ?string $waitForSelector = null, ?string $cookies = null): ?string
     {
+        $apiKey = $this->getApiKey();
+
         $query = [
             'url' => $url,
-            'x-api-key' => $this->getApiKey(),
+            'x-api-key' => $apiKey,
         ];
 
         if ($waitForSelector !== null) {
@@ -41,6 +45,21 @@ class ScrapingantService
         try {
             $response = $this->client->get('/general', ['query' => $query]);
         } catch (GuzzleException $exception) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($exception instanceof RequestException && $exception->hasResponse()) {
+                $statusCode = $exception->getResponse()->getStatusCode();
+                $responseBody = $exception->getResponse()->getBody()->getContents();
+            }
+
+            Log::error('Failed to fetch data from ScrapingAnt.', [
+                'url' => $url,
+                'error' => $exception->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
+            ]);
+
             throw new RuntimeException('Failed to fetch data from ScrapingAnt.', 0, $exception);
         }
 
@@ -49,6 +68,7 @@ class ScrapingantService
 
     public function getApiKey(): string
     {
+        $this->settings->refresh();
         $apiKey = $this->settings->api_key;
 
         if (! is_string($apiKey) || trim($apiKey) === '') {

@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -17,10 +18,6 @@ class PorkbunService
 
     const BASE_URL = 'https://api.porkbun.com';
 
-    protected ?string $apiKey = null;
-
-    protected ?string $secretKey = null;
-
     protected Registrar $registrar;
 
     protected Client $client;
@@ -28,8 +25,6 @@ class PorkbunService
     public function __construct(Registrar $registrar)
     {
         $this->registrar = $registrar;
-        $this->apiKey = $this->getApiKey();
-        $this->secretKey = $this->getSecretKey();
 
         $this->client = new Client([
             'base_uri' => self::BASE_URL,
@@ -39,7 +34,7 @@ class PorkbunService
 
     public function isConfigured(): bool
     {
-        return ! empty($this->apiKey) && ! empty($this->secretKey);
+        return ! empty($this->getApiKey()) && ! empty($this->getSecretKey());
     }
 
     public function validateCredentials(): bool
@@ -49,24 +44,51 @@ class PorkbunService
         }
 
         try {
+            $apiKey = $this->getApiKey();
+            $secretKey = $this->getSecretKey();
+
+            Log::info('Porkbun API validation attempt', [
+                'registrar_id' => $this->registrar->id,
+                'api_key_length' => strlen($apiKey ?? ''),
+                'api_key_exists' => ! empty($apiKey),
+                'secret_key_exists' => ! empty($secretKey),
+            ]);
+
             $response = $this->client->post('/api/json/v3/ping', [
                 'headers' => [
                     'Accept' => 'application/json',
                     'Content-Type' => 'application/json',
                 ],
                 'json' => [
-                    'apikey' => $this->apiKey,
-                    'secretapikey' => $this->secretKey,
+                    'apikey' => $apiKey,
+                    'secretapikey' => $secretKey,
                 ],
             ]);
 
-            $data = json_decode($response->getBody()->getContents(), true);
+            $body = $response->getBody()->getContents();
+            $data = json_decode($body, true);
+
+            Log::info('Porkbun API validation response', [
+                'registrar_id' => $this->registrar->id,
+                'status_code' => $response->getStatusCode(),
+                'response_status' => $data['status'] ?? null,
+            ]);
 
             return $response->getStatusCode() === 200 && ($data['status'] ?? null) === 'SUCCESS';
         } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Porkbun credentials validation failed', [
                 'registrar_id' => $this->registrar->id,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             return false;
@@ -115,9 +137,19 @@ class PorkbunService
                 })
                 ->values();
         } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Failed to fetch Porkbun prices', [
                 'registrar_id' => $this->registrar->id,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             throw $e;
@@ -131,14 +163,17 @@ class PorkbunService
         }
 
         try {
+            $apiKey = $this->getApiKey();
+            $secretKey = $this->getSecretKey();
+
             $response = $this->client->get('/api/json/v3/domain/listAll', [
                 'headers' => [
                     'Accept' => 'application/json',
-                    'Authorization' => "Bearer {$this->apiKey}",
+                    'Content-Type' => 'application/json',
                 ],
                 'json' => [
-                    'secretapikey' => $this->secretKey,
-                    'apikey' => $this->apiKey,
+                    'secretapikey' => $secretKey,
+                    'apikey' => $apiKey,
                     'start' => '0',
                     'includeLabels' => 'no',
                 ],
@@ -171,9 +206,19 @@ class PorkbunService
                 ];
             });
         } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Failed to fetch Porkbun domains', [
                 'registrar_id' => $this->registrar->id,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             throw $e;

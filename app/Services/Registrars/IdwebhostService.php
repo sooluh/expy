@@ -12,6 +12,7 @@ use DOMXPath;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -24,8 +25,6 @@ class IdwebhostService
 
     protected Registrar $registrar;
 
-    protected ?string $cookies;
-
     protected Client $client;
 
     protected ?ScrapingantService $scrapingantService;
@@ -35,7 +34,6 @@ class IdwebhostService
     public function __construct(Registrar $registrar, ScrapingantService $scrapingantService)
     {
         $this->registrar = $registrar;
-        $this->cookies = $this->getCookies();
         $this->scrapingantService = $scrapingantService;
 
         try {
@@ -60,7 +58,7 @@ class IdwebhostService
     {
         $url = 'https://member.idwebhost.com/clientarea.php';
 
-        if (empty($this->cookies)) {
+        if (empty($this->getCookies())) {
             return false;
         }
 
@@ -69,9 +67,19 @@ class IdwebhostService
 
             return is_string($html) && str_contains($html, 'Selamat Datang');
         } catch (Exception|GuzzleException $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Failed to validate IDwebhost credentials', [
                 'registrar_id' => $this->registrar->id ?? null,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             return false;
@@ -93,9 +101,19 @@ class IdwebhostService
 
             return $this->parsePricesFromHtml($html);
         } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Failed to fetch IDwebhost prices', [
                 'registrar_id' => $this->registrar->id ?? null,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             throw $e;
@@ -104,7 +122,7 @@ class IdwebhostService
 
     public function getDomains(): Collection
     {
-        if (empty($this->cookies)) {
+        if (empty($this->getCookies())) {
             throw new Exception('IDwebhost cookies are not configured');
         }
 
@@ -121,9 +139,19 @@ class IdwebhostService
 
             return $this->parseDomainsFromHtml($html);
         } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Failed to fetch IDwebhost domains', [
                 'registrar_id' => $this->registrar->id ?? null,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             throw $e;
@@ -132,7 +160,7 @@ class IdwebhostService
 
     protected function fetchHtml(string $url, ?string $waitForSelector = null, bool $useCookies = false): string
     {
-        $cookies = $useCookies ? $this->normalizeCookies($this->cookies) : null;
+        $cookies = $useCookies ? $this->normalizeCookies($this->getCookies()) : null;
 
         if ($this->scrapingantEnabled && $this->scrapingantService !== null) {
             try {

@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Settings\CurrencyapiSettings;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class CurrencyapiService
@@ -29,12 +31,28 @@ class CurrencyapiService
     public function latest(): array
     {
         try {
+            $apiKey = $this->getApiKey();
+
             $response = $this->client->get('/v3/latest', [
                 'headers' => [
-                    'apikey' => $this->getApiKey(),
+                    'apikey' => $apiKey,
                 ],
             ]);
         } catch (GuzzleException $exception) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($exception instanceof RequestException && $exception->hasResponse()) {
+                $statusCode = $exception->getResponse()->getStatusCode();
+                $responseBody = $exception->getResponse()->getBody()->getContents();
+            }
+
+            Log::error('Failed to fetch latest currencies.', [
+                'error' => $exception->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
+            ]);
+
             throw new RuntimeException('Failed to fetch latest currencies.', 0, $exception);
         }
 
@@ -71,6 +89,7 @@ class CurrencyapiService
 
     public function getApiKey(): string
     {
+        $this->settings->refresh();
         $payload = $this->settings->api_key;
 
         if (! is_string($payload) || trim($payload) === '') {

@@ -4,6 +4,8 @@ namespace App\Services;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class IanaService
@@ -28,6 +30,20 @@ class IanaService
         try {
             $response = $this->client->get('/rdap/dns.json');
         } catch (GuzzleException $exception) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($exception instanceof RequestException && $exception->hasResponse()) {
+                $statusCode = $exception->getResponse()->getStatusCode();
+                $responseBody = $exception->getResponse()->getBody()->getContents();
+            }
+
+            Log::error('Failed to fetch RDAP data from IANA.', [
+                'error' => $exception->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
+            ]);
+
             throw new RuntimeException('Failed to fetch RDAP data from IANA.', 0, $exception);
         }
 

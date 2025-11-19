@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Registrars\Schemas;
+namespace App\Filament\Resources\Registrars\Tables;
 
 use Filament\Tables\Table;
 

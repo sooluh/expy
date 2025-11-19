@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -17,8 +18,6 @@ class DynadotService
 
     const BASE_URL = 'https://api.dynadot.com';
 
-    protected ?string $apiKey = null;
-
     protected Registrar $registrar;
 
     protected Client $client;
@@ -26,7 +25,6 @@ class DynadotService
     public function __construct(Registrar $registrar)
     {
         $this->registrar = $registrar;
-        $this->apiKey = $this->getApiKey();
 
         $this->client = new Client([
             'base_uri' => self::BASE_URL,
@@ -36,7 +34,7 @@ class DynadotService
 
     public function isConfigured(): bool
     {
-        return ! empty($this->apiKey);
+        return ! empty($this->getApiKey());
     }
 
     public function validateCredentials(): bool
@@ -46,10 +44,18 @@ class DynadotService
         }
 
         try {
+            $apiKey = $this->getApiKey();
+
+            Log::info('Dynadot API validation attempt', [
+                'registrar_id' => $this->registrar->id,
+                'api_key_length' => strlen($apiKey ?? ''),
+                'api_key_exists' => ! empty($apiKey),
+            ]);
+
             $response = $this->client->get('/restful/v1/tld/get_tld_price', [
                 'headers' => [
                     'Accept' => 'application/json',
-                    'Authorization' => "Bearer {$this->apiKey}",
+                    'Authorization' => "Bearer {$apiKey}",
                 ],
                 'query' => [
                     'currency' => 'usd',
@@ -57,13 +63,31 @@ class DynadotService
                 ],
             ]);
 
-            $data = json_decode($response->getBody()->getContents(), true);
+            $body = $response->getBody()->getContents();
+            $data = json_decode($body, true);
+
+            Log::info('Dynadot API validation response', [
+                'registrar_id' => $this->registrar->id,
+                'status_code' => $response->getStatusCode(),
+                'response_code' => $data['code'] ?? null,
+                'response_message' => $data['message'] ?? null,
+            ]);
 
             return $response->getStatusCode() === 200 && ($data['code'] ?? null) === 200;
         } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Dynadot credentials validation failed', [
                 'registrar_id' => $this->registrar->id,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             return false;
@@ -77,10 +101,12 @@ class DynadotService
         }
 
         try {
+            $apiKey = $this->getApiKey();
+
             $response = $this->client->get('/restful/v1/tld/get_tld_price', [
                 'headers' => [
                     'Accept' => 'application/json',
-                    'Authorization' => "Bearer {$this->apiKey}",
+                    'Authorization' => "Bearer {$apiKey}",
                 ],
                 'query' => [
                     'currency' => 'usd',
@@ -115,9 +141,19 @@ class DynadotService
                 ];
             });
         } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Failed to fetch Dynadot prices', [
                 'registrar_id' => $this->registrar->id,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             throw $e;
@@ -131,10 +167,12 @@ class DynadotService
         }
 
         try {
+            $apiKey = $this->getApiKey();
+
             $response = $this->client->get('/restful/v1/domains', [
                 'headers' => [
                     'Accept' => 'application/json',
-                    'Authorization' => "Bearer {$this->apiKey}",
+                    'Authorization' => "Bearer {$apiKey}",
                 ],
                 'query' => [
                     'currency' => 'usd',
@@ -172,9 +210,19 @@ class DynadotService
                 ];
             });
         } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
             Log::error('Failed to fetch Dynadot domains', [
                 'registrar_id' => $this->registrar->id,
                 'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
             ]);
 
             throw $e;
