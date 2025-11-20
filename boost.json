@@ -1,0 +1,5 @@
+{
+  "agents": ["codex", "copilot", "opencode"],
+  "editors": ["opencode", "vscode"],
+  "guidelines": ["filament/filament"]
+}
