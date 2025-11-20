@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Registrars\Tables;
 
 use App\Enums\RegistrarCode;
 use App\Filament\Resources\Registrars\RegistrarResource;
+use App\Jobs\SyncRegistrarPricesJob;
 use App\Models\Registrar;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -18,6 +19,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class RegistrarsTable
 {
@@ -61,7 +63,22 @@ class RegistrarsTable
                     ->icon('tabler-currency-dollar')
                     ->color('info')
                     ->url(fn (Registrar $record): string => RegistrarResource::getUrl('fees', ['record' => $record])),
-                EditAction::make()->modalWidth(Width::Large),
+                EditAction::make()
+                    ->modalWidth(Width::Large)
+                    ->after(function (Registrar $record): void {
+                        if ($record->api_support === RegistrarCode::NONE) {
+                            return;
+                        }
+
+                        if (! $record->wasChanged('api_support')) {
+                            return;
+                        }
+
+                        SyncRegistrarPricesJob::dispatch(
+                            $record->id,
+                            Auth::id()
+                        );
+                    }),
                 DeleteAction::make(),
                 RestoreAction::make(),
             ])
