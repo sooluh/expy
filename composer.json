@@ -9,6 +9,7 @@
     "codewithdennis/filament-simple-alert": "4.x",
     "filament/filament": "^4.0",
     "guzzlehttp/guzzle": "^7.0",
+    "io-developer/php-whois": "^4.1",
     "laravel/framework": "^12.0",
     "laravel/tinker": "^2.10.1",
     "livewire/volt": "^1.7.0",

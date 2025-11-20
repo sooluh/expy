@@ -30,7 +30,8 @@ class RegistrarsTable
                 IconColumn::make('notes')
                     ->label('')
                     ->icon('tabler-message')
-                    ->tooltip(fn ($state) => $state ?: null),
+                    ->tooltip(fn ($state) => $state ?: null)
+                    ->grow(false),
 
                 TextColumn::make('name')
                     ->label('Registrar name')
@@ -63,6 +64,7 @@ class RegistrarsTable
                     ->icon('tabler-currency-dollar')
                     ->color('info')
                     ->url(fn (Registrar $record): string => RegistrarResource::getUrl('fees', ['record' => $record])),
+
                 EditAction::make()
                     ->modalWidth(Width::Large)
                     ->after(function (Registrar $record): void {
@@ -79,6 +81,7 @@ class RegistrarsTable
                             Auth::id()
                         );
                     }),
+
                 DeleteAction::make(),
                 RestoreAction::make(),
             ])

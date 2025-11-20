@@ -9,19 +9,37 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Support\Enums\Width;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Carbon;
 
 class DomainsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('expiration_date')
             ->columns([
+                IconColumn::make('nameservers_status')
+                    ->label('')
+                    ->state(fn ($record) => self::usesCloudflare($record->nameservers))
+                    ->icon(fn (bool $state) => $state ? 'tabler-brand-cloudflare' : 'tabler-world')
+                    ->color(fn (bool $state) => $state ? 'warning' : 'gray')
+                    ->tooltip(fn (bool $state) => $state ? 'Cloudflare DNS' : 'Non-Cloudflare DNS')
+                    ->grow(false),
+
+                IconColumn::make('sync_status')
+                    ->label('')
+                    ->icon(fn ($record) => $record->sync_status?->getIcon())
+                    ->tooltip(fn ($record) => $record->sync_status?->getLabel())
+                    ->grow(false),
+
                 TextColumn::make('domain_name')
                     ->label('Domain name')
+                    ->color(fn ($record) => self::domainBadgeColor($record->expiration_date))
                     ->badge()
                     ->searchable()
                     ->sortable(),
@@ -54,7 +72,7 @@ class DomainsTable
                     ->relationship('registrar', 'name')
                     ->multiple(),
 
-                TrashedFilter::make(),
+                TrashedFilter::make()->native(false),
             ])
             ->recordActions([
                 EditAction::make()->modalWidth(Width::Large),
@@ -66,5 +84,29 @@ class DomainsTable
                     RestoreBulkAction::make(),
                 ]),
             ]);
+    }
+
+    protected static function usesCloudflare(?array $nameservers): bool
+    {
+        return collect($nameservers ?? [])
+            ->filter()
+            ->contains(fn (string $ns) => str_ends_with(strtolower($ns), '.ns.cloudflare.com'));
+    }
+
+    protected static function domainBadgeColor(?Carbon $expiration): string
+    {
+        if (! $expiration || $expiration->isPast()) {
+            return 'gray';
+        }
+
+        if ($expiration->isBefore(now()->addMonth())) {
+            return 'danger';
+        }
+
+        if ($expiration->isBefore(now()->addMonths(3))) {
+            return 'warning';
+        }
+
+        return 'success';
     }
 }

@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Enums\DomainSyncStatus;
+use App\Observers\DomainObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Qopiku\FilamentSqids\Traits\HasSqids;
 
+#[ObservedBy(DomainObserver::class)]
 class Domain extends Model
 {
     use HasSqids, SoftDeletes;

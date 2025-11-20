@@ -224,4 +224,10 @@ class PorkbunService
             throw $e;
         }
     }
+
+    public function getDomain(string $domainName): array
+    {
+        // TODO: implement domain fetch when integration is ready.
+        return [];
+    }
 }

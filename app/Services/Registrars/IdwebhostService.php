@@ -158,6 +158,12 @@ class IdwebhostService
         }
     }
 
+    public function getDomain(string $domainName): array
+    {
+        // TODO: implement domain fetch when integration is ready.
+        return [];
+    }
+
     protected function fetchHtml(string $url, ?string $waitForSelector = null, bool $useCookies = false): string
     {
         $cookies = $useCookies ? $this->normalizeCookies($this->getCookies()) : null;

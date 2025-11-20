@@ -195,20 +195,7 @@ class DynadotService
 
             $domainList = $data['data']['domainInfo'] ?? [];
 
-            return collect($domainList)->map(function ($item) {
-                $nameservers = collect($item['glueInfo']['name_server_settings']['name_servers'] ?? [])
-                    ->map(fn ($ns) => $ns['server_name'])
-                    ->toArray();
-
-                return [
-                    'domain_name' => $item['domainName'],
-                    'registration_date' => Carbon::createFromTimestamp($item['registration']),
-                    'expiration_date' => Carbon::createFromTimestamp($item['expiration']),
-                    'nameservers' => $nameservers,
-                    'security_lock' => strtolower($item['locked']) === 'yes',
-                    'whois_privacy' => in_array(strtolower($item['privacy']), ['full privacy', 'partial privacy']),
-                ];
-            });
+            return collect($domainList)->map(fn ($item) => $this->formatDomain($item));
         } catch (GuzzleException|Exception $e) {
             $statusCode = null;
             $responseBody = null;
@@ -227,5 +214,88 @@ class DynadotService
 
             throw $e;
         }
+    }
+
+    public function getDomain(string $domainName): array
+    {
+        if (! $this->isConfigured()) {
+            throw new Exception('Dynadot API is not properly configured');
+        }
+
+        try {
+            $apiKey = $this->getApiKey();
+
+            $response = $this->client->get("/restful/v1/domains/{$domainName}", [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Authorization' => "Bearer {$apiKey}",
+                ],
+            ]);
+
+            $body = $response->getBody()->getContents();
+            $data = json_decode($body, true);
+
+            if ($response->getStatusCode() !== 200) {
+                throw new Exception("API request failed: {$response->getStatusCode()}");
+            }
+
+            if (($data['code'] ?? null) !== 200) {
+                $message = $data['message'] ?? 'Unknown error';
+                $code = $data['code'] ?? 'no code';
+
+                throw new Exception("API Error (code: {$code}): {$message}");
+            }
+
+            $info = $data['data']['domainInfo'][0] ?? null;
+
+            return $info ? $this->formatDomain($info) : [];
+        } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
+            Log::error('Failed to fetch Dynadot domain', [
+                'registrar_id' => $this->registrar->id,
+                'domain' => $domainName,
+                'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    protected function formatDomain(array $item): array
+    {
+        $nameservers = collect($item['glueInfo']['name_server_settings']['name_servers'] ?? [])
+            ->map(fn ($ns) => $ns['server_name'])
+            ->toArray();
+
+        return [
+            'domain_name' => $item['domainName'],
+            'registration_date' => $this->parseTimestamp($item['registration'] ?? null),
+            'expiration_date' => $this->parseTimestamp($item['expiration'] ?? null),
+            'nameservers' => $nameservers,
+            'security_lock' => strtolower($item['locked'] ?? '') === 'yes',
+            'whois_privacy' => in_array(strtolower($item['privacy'] ?? ''), ['full privacy', 'partial privacy']),
+        ];
+    }
+
+    protected function parseTimestamp(?int $value): ?Carbon
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $asInt = (int) $value;
+
+        return $asInt > 10_000_000_000
+            ? Carbon::createFromTimestampMs($asInt)
+            : Carbon::createFromTimestamp($asInt);
     }
 }
