@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Domains\Tables;
 
 use App\Settings\GeneralSettings;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
@@ -29,12 +30,14 @@ class DomainsTable
                     ->icon(fn (bool $state) => $state ? 'tabler-brand-cloudflare' : 'tabler-world')
                     ->color(fn (bool $state) => $state ? 'warning' : 'gray')
                     ->tooltip(fn (bool $state) => $state ? 'Cloudflare DNS' : 'Non-Cloudflare DNS')
+                    ->alignCenter()
                     ->grow(false),
 
                 IconColumn::make('sync_status')
                     ->label('')
                     ->icon(fn ($record) => $record->sync_status?->getIcon())
                     ->tooltip(fn ($record) => $record->sync_status?->getLabel())
+                    ->alignCenter()
                     ->grow(false),
 
                 TextColumn::make('domain_name')
@@ -76,6 +79,7 @@ class DomainsTable
             ])
             ->recordActions([
                 EditAction::make()->modalWidth(Width::Large),
+                DeleteAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

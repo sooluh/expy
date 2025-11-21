@@ -31,6 +31,7 @@ class RegistrarsTable
                     ->label('')
                     ->icon('tabler-message')
                     ->tooltip(fn ($state) => $state ?: null)
+                    ->alignCenter()
                     ->grow(false),
 
                 TextColumn::make('name')
