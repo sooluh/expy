@@ -15,6 +15,7 @@ use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class IdwebhostService
@@ -63,7 +64,7 @@ class IdwebhostService
         }
 
         try {
-            $html = $this->fetchHtml($url, waitForSelector: null, useCookies: true);
+            $html = $this->fetchHtml($url);
 
             return is_string($html) && str_contains($html, 'Selamat Datang');
         } catch (Exception|GuzzleException $e) {
@@ -89,17 +90,125 @@ class IdwebhostService
     public function getPrices(): Collection
     {
         try {
-            $html = $this->fetchHtml(
-                'https://idwebhost.com/domain-murah',
-                waitForSelector: 'option[value=""]',
-                useCookies: false,
-            );
+            $client = new Client(['base_uri' => self::BASE_URL, 'timeout' => 30]);
+
+            $response = $client->get('https://idwebhost.com/domain-murah', [
+                'headers' => [
+                    'Accept' => 'text/html,application/xhtml+xml',
+                ],
+                'http_errors' => false,
+            ]);
+
+            $html = $response->getBody()->getContents();
 
             if (! is_string($html) || trim($html) === '') {
                 throw new Exception('Empty HTML response from IDwebhost.');
             }
 
-            return $this->parsePricesFromHtml($html);
+            $csrfToken = $this->extractCsrfToken($html);
+
+            Log::debug('[IDwebhost] CSRF token extracted', ['csrfToken' => $csrfToken]);
+
+            $registerPrices = $this->parsePricesFromHtml($html);
+            $randomDomain = strtolower(preg_replace('/[^a-z0-9]/', '', Str::random(8)));
+
+            Log::debug('[IDwebhost] Random domain for AJAX', ['randomDomain' => $randomDomain]);
+
+            $setCookies = $response->getHeader('Set-Cookie');
+            $cookieForAjax = '';
+
+            foreach ($setCookies as $sc) {
+                $cookieForAjax .= explode(';', $sc)[0].'; ';
+            }
+
+            $cookieForAjax = trim($cookieForAjax);
+            $cookieForAjax = $this->normalizeCookies($cookieForAjax);
+
+            Log::debug('[IDwebhost] Cookie for AJAX', ['cookieForAjax' => $cookieForAjax]);
+
+            $renewPrices = collect();
+
+            $types = [
+                'recommend',
+                'domainid',
+                'promo',
+                'perusahaan',
+                'organisasi',
+                'pendidikan',
+                'toko',
+                'profesi',
+                'bisnis',
+                'personal',
+                'umum',
+            ];
+
+            foreach ($types as $type) {
+                Log::debug('[IDwebhost] Preflight request', [
+                    'type' => $type,
+                    'domainname' => $randomDomain,
+                    'token' => $csrfToken,
+                ]);
+
+                $preflight = $this->postAjax(
+                    'https://idwebhost.com/index.php?action=orderwhmcs.validatedomain',
+                    ['domainname' => $randomDomain, 'token' => $csrfToken],
+                    $cookieForAjax
+                );
+
+                Log::debug('[IDwebhost] Preflight response', ['type' => $type, 'response' => $preflight]);
+
+                if (! isset($preflight['response']) || $preflight['response'] != 1) {
+                    continue;
+                }
+
+                $domainToCheck = $randomDomain.'.com';
+
+                Log::debug('[IDwebhost] Whois request', [
+                    'type' => $type,
+                    'domain' => $domainToCheck,
+                    'token' => $csrfToken,
+                ]);
+
+                $whois = $this->postAjax(
+                    'https://idwebhost.com/index.php?action=whois.getwhoisdomain',
+                    ['domain' => $domainToCheck, 'token' => $csrfToken, 'type' => $type],
+                    $cookieForAjax
+                );
+
+                Log::debug('[IDwebhost] Whois response', ['type' => $type, 'response' => $whois]);
+
+                if (! isset($whois['result']) || ! is_array($whois['result'])) {
+                    continue;
+                }
+
+                foreach ($whois['result'] as $row) {
+                    Log::debug('[IDwebhost] Whois row', ['type' => $type, 'row' => $row]);
+
+                    if (! isset($row['tld']) || ! isset($row['price_renew'])) {
+                        continue;
+                    }
+
+                    $tld = ltrim($row['tld'], '.');
+                    $renewPrices[$tld] = (float) $row['price_renew'];
+                }
+            }
+
+            Log::debug('[IDwebhost] Final renewPrices', ['renewPrices' => $renewPrices]);
+
+            $merged = $registerPrices->map(function ($item) use ($renewPrices) {
+                $tld = $item['tld'] ?? null;
+                $renew = $tld && isset($renewPrices[$tld]) ? $renewPrices[$tld] : null;
+
+                return [
+                    ...$item,
+                    'renew_price' => $renew,
+                    'transfer_price' => $renew,
+                ];
+            });
+
+            Log::debug('[IDwebhost] Final merged prices', ['merged' => $merged]);
+
+            return $merged;
         } catch (GuzzleException|Exception $e) {
             $statusCode = null;
             $responseBody = null;
@@ -120,6 +229,58 @@ class IdwebhostService
         }
     }
 
+    protected function extractCsrfToken(string $html): ?string
+    {
+        if (! preg_match("/let csrfToken = '([a-f0-9]+)';/", $html, $matches)) {
+            return null;
+        }
+
+        return $matches[1] ?? null;
+    }
+
+    protected function postAjax(string $url, array $payload, ?string $cookie = null): array
+    {
+        $domainName = $payload['domainname'] ?? ($payload['domain'] ?? '');
+        $referer = 'https://idwebhost.com/cek-domain/'.$domainName;
+
+        $headers = [
+            'Accept' => 'application/json, text/javascript, */*; q=0.01',
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Referer' => $referer,
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+        ];
+
+        if ($cookie) {
+            $headers['Cookie'] = $cookie;
+        }
+
+        $multipart = [];
+
+        foreach ($payload as $key => $value) {
+            $multipart[] = [
+                'name' => $key,
+                'contents' => $value,
+            ];
+        }
+
+        $options = [
+            'headers' => $headers,
+            'multipart' => $multipart,
+            'timeout' => 30,
+        ];
+
+        $response = $this->client->post($url, $options);
+
+        if ($response->getStatusCode() !== 200) {
+            throw new Exception("IDwebhost AJAX request failed ({$url}): {$response->getStatusCode()}");
+        }
+
+        $body = $response->getBody()->getContents();
+        $json = json_decode($body, true);
+
+        return is_array($json) ? $json : [];
+    }
+
     public function getDomains(): Collection
     {
         if (empty($this->getCookies())) {
@@ -127,11 +288,7 @@ class IdwebhostService
         }
 
         try {
-            $html = $this->fetchHtml(
-                'https://member.idwebhost.com/clientarea.php?action=domains',
-                waitForSelector: 'table#tableDomainsList',
-                useCookies: true,
-            );
+            $html = $this->fetchHtml('https://member.idwebhost.com/clientarea.php?action=domains', 'table#tableDomainsList');
 
             if (! is_string($html) || trim($html) === '') {
                 throw new Exception('Empty HTML response from IDwebhost domains page.');
@@ -164,9 +321,9 @@ class IdwebhostService
         return [];
     }
 
-    protected function fetchHtml(string $url, ?string $waitForSelector = null, bool $useCookies = false): string
+    protected function fetchHtml(string $url, ?string $waitForSelector = null): string
     {
-        $cookies = $useCookies ? $this->normalizeCookies($this->getCookies()) : null;
+        $cookies = $this->normalizeCookies($this->getCookies());
 
         if ($this->scrapingantEnabled && $this->scrapingantService !== null) {
             try {
@@ -175,7 +332,6 @@ class IdwebhostService
                     $waitForSelector,
                     $cookies,
                 );
-
                 if (is_string($html) && trim($html) !== '') {
                     return $html;
                 }
