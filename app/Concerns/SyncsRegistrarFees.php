@@ -2,6 +2,7 @@
 
 namespace App\Concerns;
 
+use App\Models\Registrar;
 use App\Models\RegistrarFee;
 
 trait SyncsRegistrarFees
@@ -46,5 +47,33 @@ trait SyncsRegistrarFees
         }
 
         return false;
+    }
+
+    protected function backfillMissingRenewTransfer(Registrar $registrar): void
+    {
+        $registrar->fees()->chunkById(100, function ($fees) {
+            /** @var RegistrarFee $fee */
+            foreach ($fees as $fee) {
+                $registerPrice = $fee->register_price;
+                $renewPrice = $fee->renew_price;
+                $transferPrice = $fee->transfer_price;
+
+                if ($registerPrice === null) {
+                    continue;
+                }
+
+                if ($renewPrice === null || (float) $renewPrice === 0.0) {
+                    $fee->renew_price = $registerPrice;
+                }
+
+                if ($transferPrice === null || (float) $transferPrice === 0.0) {
+                    $fee->transfer_price = $registerPrice;
+                }
+
+                if ($fee->isDirty()) {
+                    $fee->save();
+                }
+            }
+        });
     }
 }

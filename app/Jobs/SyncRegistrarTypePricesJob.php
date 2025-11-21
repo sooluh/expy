@@ -52,6 +52,7 @@ class SyncRegistrarTypePricesJob implements ShouldQueue
             foreach ($prices as $priceData) {
                 $payload = $this->normalizeFeePayload($priceData);
                 $renewPrice = $payload['renew_price'] ?? null;
+                $registerPrice = $payload['register_price'] ?? null;
 
                 if (! $payload['tld']) {
                     continue;
@@ -60,6 +61,13 @@ class SyncRegistrarTypePricesJob implements ShouldQueue
                 $fee = $registrar->fees()->where('tld', $payload['tld'])->first();
 
                 if ($fee) {
+                    $registerPrice ??= $fee->register_price;
+
+                    if (($renewPrice === null || $renewPrice <= 0) && $registerPrice !== null) {
+                        $payload['renew_price'] = $registerPrice;
+                        $payload['transfer_price'] = $payload['transfer_price'] ?? $registerPrice;
+                    }
+
                     if ($this->feeHasChanges($fee, $payload)) {
                         $fee->update($payload);
                     }
@@ -68,13 +76,15 @@ class SyncRegistrarTypePricesJob implements ShouldQueue
                         continue;
                     }
 
-                    if (! array_key_exists('register_price', $payload)) {
-                        $payload['register_price'] = $renewPrice;
-                    }
+                    $payload['register_price'] = $registerPrice ?? $renewPrice;
+                    $payload['transfer_price'] = $payload['transfer_price'] ?? $payload['register_price'];
+                    $payload['renew_price'] = $payload['renew_price'] ?? $payload['register_price'];
 
                     $registrar->fees()->create($payload);
                 }
             }
+
+            $this->backfillMissingRenewTransfer($registrar);
         } catch (Exception $e) {
             Log::error('Failed to sync registrar type prices', [
                 'registrar_id' => $this->registrarId,
