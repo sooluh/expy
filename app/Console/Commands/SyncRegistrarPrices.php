@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Concerns\SyncsRegistrarFees;
 use App\Enums\RegistrarCode;
 use App\Models\Registrar;
 use Exception;
@@ -9,6 +10,8 @@ use Illuminate\Console\Command;
 
 class SyncRegistrarPrices extends Command
 {
+    use SyncsRegistrarFees;
+
     protected $signature = 'registrar:sync-prices {registrar? : The registrar ID or "all" for all registrars}';
 
     protected $description = 'Synchronize TLD prices from registrar API';
@@ -75,25 +78,28 @@ class SyncRegistrarPrices extends Command
             $updatedCount = 0;
 
             foreach ($prices as $priceData) {
-                $fee = $registrar->fees()->where('tld', $priceData['tld'])->first();
+                $payload = $this->normalizeFeePayload($priceData);
+
+                if (! $payload['tld']) {
+                    continue;
+                }
+
+                $fee = $registrar->fees()->where('tld', $payload['tld'])->first();
 
                 if ($fee) {
-                    $changed = false;
-                    foreach (['register_price', 'renew_price', 'transfer_price', 'restore_price', 'privacy_price', 'misc_price'] as $field) {
-                        if ((string) $fee->$field !== (string) ($priceData[$field] ?? null)) {
-                            $changed = true;
-                            break;
-                        }
-                    }
-
-                    if ($changed) {
-                        $fee->update($priceData);
+                    if ($this->feeHasChanges($fee, $payload)) {
+                        $fee->update($payload);
                         $updatedCount++;
                     }
                 } else {
-                    $registrar->fees()->create($priceData);
+                    $registrar->fees()->create($payload);
                     $newCount++;
                 }
+            }
+
+            if ($service->supportsDeferredPriceSync()) {
+                $service->dispatchDeferredPriceSync();
+                $this->info("Queued additional price sync tasks for {$registrar->name}.");
             }
 
             $this->info("{$registrar->name}: {$newCount} new, {$updatedCount} updated");

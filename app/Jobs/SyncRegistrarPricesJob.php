@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Concerns\SyncsRegistrarFees;
 use App\Models\Registrar;
 use App\Models\User;
 use Exception;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class SyncRegistrarPricesJob implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SyncsRegistrarFees;
 
     public function __construct(
         public int $registrarId,
@@ -49,25 +50,27 @@ class SyncRegistrarPricesJob implements ShouldQueue
             $updatedCount = 0;
 
             foreach ($prices as $priceData) {
-                $fee = $registrar->fees()->where('tld', $priceData['tld'])->first();
+                $payload = $this->normalizeFeePayload($priceData);
+
+                if (! $payload['tld']) {
+                    continue;
+                }
+
+                $fee = $registrar->fees()->where('tld', $payload['tld'])->first();
 
                 if ($fee) {
-                    $changed = false;
-                    foreach (['register_price', 'renew_price', 'transfer_price', 'restore_price', 'privacy_price', 'misc_price'] as $field) {
-                        if ((string) $fee->$field !== (string) ($priceData[$field] ?? null)) {
-                            $changed = true;
-                            break;
-                        }
-                    }
-
-                    if ($changed) {
-                        $fee->update($priceData);
+                    if ($this->feeHasChanges($fee, $payload)) {
+                        $fee->update($payload);
                         $updatedCount++;
                     }
                 } else {
-                    $registrar->fees()->create($priceData);
+                    $registrar->fees()->create($payload);
                     $newCount++;
                 }
+            }
+
+            if ($service->supportsDeferredPriceSync()) {
+                $service->dispatchDeferredPriceSync($this->userId);
             }
 
             $message = "{$registrar->name}: {$newCount} new TLD(s), {$updatedCount} updated";

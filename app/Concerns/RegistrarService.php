@@ -131,4 +131,11 @@ trait RegistrarService
             return 1.0;
         }
     }
+
+    public function supportsDeferredPriceSync(): bool
+    {
+        return false;
+    }
+
+    public function dispatchDeferredPriceSync(?int $userId = null): void {}
 }

@@ -3,6 +3,7 @@
 namespace App\Services\Registrars;
 
 use App\Concerns\RegistrarService;
+use App\Jobs\SyncRegistrarTypePricesJob;
 use App\Models\Registrar;
 use App\Services\ScrapingantService;
 use Carbon\Carbon;
@@ -23,6 +24,20 @@ class IdwebhostService
     use RegistrarService;
 
     public const BASE_URL = 'https://idwebhost.com';
+
+    public const PRICE_TYPES = [
+        'recommend',
+        'domainid',
+        'promo',
+        'perusahaan',
+        'organisasi',
+        'pendidikan',
+        'toko',
+        'profesi',
+        'bisnis',
+        'personal',
+        'umum',
+    ];
 
     protected Registrar $registrar;
 
@@ -90,125 +105,9 @@ class IdwebhostService
     public function getPrices(): Collection
     {
         try {
-            $client = new Client(['base_uri' => self::BASE_URL, 'timeout' => 30]);
+            $context = $this->fetchPricingPageContext();
 
-            $response = $client->get('https://idwebhost.com/domain-murah', [
-                'headers' => [
-                    'Accept' => 'text/html,application/xhtml+xml',
-                ],
-                'http_errors' => false,
-            ]);
-
-            $html = $response->getBody()->getContents();
-
-            if (! is_string($html) || trim($html) === '') {
-                throw new Exception('Empty HTML response from IDwebhost.');
-            }
-
-            $csrfToken = $this->extractCsrfToken($html);
-
-            Log::debug('[IDwebhost] CSRF token extracted', ['csrfToken' => $csrfToken]);
-
-            $registerPrices = $this->parsePricesFromHtml($html);
-            $randomDomain = strtolower(preg_replace('/[^a-z0-9]/', '', Str::random(8)));
-
-            Log::debug('[IDwebhost] Random domain for AJAX', ['randomDomain' => $randomDomain]);
-
-            $setCookies = $response->getHeader('Set-Cookie');
-            $cookieForAjax = '';
-
-            foreach ($setCookies as $sc) {
-                $cookieForAjax .= explode(';', $sc)[0].'; ';
-            }
-
-            $cookieForAjax = trim($cookieForAjax);
-            $cookieForAjax = $this->normalizeCookies($cookieForAjax);
-
-            Log::debug('[IDwebhost] Cookie for AJAX', ['cookieForAjax' => $cookieForAjax]);
-
-            $renewPrices = collect();
-
-            $types = [
-                'recommend',
-                'domainid',
-                'promo',
-                'perusahaan',
-                'organisasi',
-                'pendidikan',
-                'toko',
-                'profesi',
-                'bisnis',
-                'personal',
-                'umum',
-            ];
-
-            foreach ($types as $type) {
-                Log::debug('[IDwebhost] Preflight request', [
-                    'type' => $type,
-                    'domainname' => $randomDomain,
-                    'token' => $csrfToken,
-                ]);
-
-                $preflight = $this->postAjax(
-                    'https://idwebhost.com/index.php?action=orderwhmcs.validatedomain',
-                    ['domainname' => $randomDomain, 'token' => $csrfToken],
-                    $cookieForAjax
-                );
-
-                Log::debug('[IDwebhost] Preflight response', ['type' => $type, 'response' => $preflight]);
-
-                if (! isset($preflight['response']) || $preflight['response'] != 1) {
-                    continue;
-                }
-
-                $domainToCheck = $randomDomain.'.com';
-
-                Log::debug('[IDwebhost] Whois request', [
-                    'type' => $type,
-                    'domain' => $domainToCheck,
-                    'token' => $csrfToken,
-                ]);
-
-                $whois = $this->postAjax(
-                    'https://idwebhost.com/index.php?action=whois.getwhoisdomain',
-                    ['domain' => $domainToCheck, 'token' => $csrfToken, 'type' => $type],
-                    $cookieForAjax
-                );
-
-                Log::debug('[IDwebhost] Whois response', ['type' => $type, 'response' => $whois]);
-
-                if (! isset($whois['result']) || ! is_array($whois['result'])) {
-                    continue;
-                }
-
-                foreach ($whois['result'] as $row) {
-                    Log::debug('[IDwebhost] Whois row', ['type' => $type, 'row' => $row]);
-
-                    if (! isset($row['tld']) || ! isset($row['price_renew'])) {
-                        continue;
-                    }
-
-                    $tld = ltrim($row['tld'], '.');
-                    $renewPrices[$tld] = (float) $row['price_renew'];
-                }
-            }
-
-            Log::debug('[IDwebhost] Final renewPrices', ['renewPrices' => $renewPrices]);
-
-            $merged = $registerPrices->map(function ($item) use ($renewPrices) {
-                $tld = $item['tld'] ?? null;
-                $renew = $tld && isset($renewPrices[$tld]) ? $renewPrices[$tld] : null;
-
-                return [
-                    ...$item,
-                    'renew_price' => $renew,
-                    'transfer_price' => $renew,
-                ];
-            });
-
-            Log::debug('[IDwebhost] Final merged prices', ['merged' => $merged]);
-
-            return $merged;
+            return $this->parsePricesFromHtml($context['html']);
         } catch (GuzzleException|Exception $e) {
             $statusCode = null;
             $responseBody = null;
@@ -227,6 +126,163 @@ class IdwebhostService
 
             throw $e;
         }
+    }
+
+    public function supportsDeferredPriceSync(): bool
+    {
+        return true;
+    }
+
+    public function dispatchDeferredPriceSync(?int $userId = null): void
+    {
+        foreach (self::PRICE_TYPES as $type) {
+            SyncRegistrarTypePricesJob::dispatch(
+                registrarId: $this->registrar->id,
+                type: $type,
+                userId: $userId
+            );
+        }
+    }
+
+    public function getPricesByType(string $type): Collection
+    {
+        if (! in_array($type, self::PRICE_TYPES, true)) {
+            return collect();
+        }
+
+        try {
+            $context = $this->fetchPricingPageContext();
+            $csrfToken = $context['csrfToken'];
+            $cookieForAjax = $context['cookieForAjax'];
+
+            if (! $csrfToken || ! $cookieForAjax) {
+                throw new Exception('Unable to prepare IDwebhost AJAX context.');
+            }
+
+            $randomDomain = $this->generateRandomDomain();
+
+            $preflight = $this->postAjax(
+                'https://idwebhost.com/index.php?action=orderwhmcs.validatedomain',
+                ['domainname' => $randomDomain, 'token' => $csrfToken],
+                $cookieForAjax
+            );
+
+            if (! isset($preflight['response']) || (int) $preflight['response'] !== 1) {
+                return collect();
+            }
+
+            $domainToCheck = $randomDomain.'.com';
+
+            $whois = $this->postAjax(
+                'https://idwebhost.com/index.php?action=whois.getwhoisdomain',
+                ['domain' => $domainToCheck, 'token' => $csrfToken, 'type' => $type],
+                $cookieForAjax
+            );
+
+            Log::info('[IDwebhost] Whois response payload', [
+                'registrar_id' => $this->registrar->id ?? null,
+                'type' => $type,
+                'domain' => $domainToCheck,
+                'response' => $whois,
+            ]);
+
+            if (! isset($whois['result']) || ! is_array($whois['result'])) {
+                return collect();
+            }
+
+            $prices = [];
+
+            foreach ($whois['result'] as $row) {
+                if (! isset($row['tld']) || ! isset($row['price_renew'])) {
+                    continue;
+                }
+
+                $tld = ltrim($row['tld'], '.');
+
+                if ($tld === '') {
+                    continue;
+                }
+
+                $renewPrice = (float) $row['price_renew'];
+
+                $prices[] = [
+                    'tld' => $tld,
+                    'renew_price' => $renewPrice,
+                    'transfer_price' => $renewPrice,
+                ];
+            }
+
+            return collect($prices);
+        } catch (GuzzleException|Exception $e) {
+            $statusCode = null;
+            $responseBody = null;
+
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $responseBody = $e->getResponse()->getBody()->getContents();
+            }
+
+            Log::error('Failed to fetch IDwebhost type prices', [
+                'registrar_id' => $this->registrar->id ?? null,
+                'type' => $type,
+                'error' => $e->getMessage(),
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    protected function fetchPricingPageContext(): array
+    {
+        $response = $this->client->get('https://idwebhost.com/domain-murah', [
+            'headers' => [
+                'Accept' => 'text/html,application/xhtml+xml',
+            ],
+            'http_errors' => false,
+        ]);
+
+        $html = $response->getBody()->getContents();
+
+        if (! is_string($html) || trim($html) === '') {
+            throw new Exception('Empty HTML response from IDwebhost.');
+        }
+
+        return [
+            'html' => $html,
+            'csrfToken' => $this->extractCsrfToken($html),
+            'cookieForAjax' => $this->buildCookieForAjax($response->getHeader('Set-Cookie')),
+        ];
+    }
+
+    protected function buildCookieForAjax(array $setCookies): ?string
+    {
+        if (empty($setCookies)) {
+            return null;
+        }
+
+        $cookieForAjax = '';
+
+        foreach ($setCookies as $cookie) {
+            $cookieForAjax .= explode(';', $cookie)[0].'; ';
+        }
+
+        $cookieForAjax = trim($cookieForAjax);
+
+        if ($cookieForAjax === '') {
+            return null;
+        }
+
+        return $this->normalizeCookies($cookieForAjax);
+    }
+
+    protected function generateRandomDomain(): string
+    {
+        $baseNames = ['contohdomain', 'exampledomain', 'domaincoba'];
+        $base = $baseNames[array_rand($baseNames)];
+
+        return $base.Str::random(3);
     }
 
     protected function extractCsrfToken(string $html): ?string
@@ -421,11 +477,6 @@ class IdwebhostService
             $result[] = [
                 'tld' => $tld,
                 'register_price' => $priceValue,
-                'renew_price' => null,
-                'transfer_price' => null,
-                'restore_price' => null,
-                'privacy_price' => null,
-                'misc_price' => null,
             ];
         }
 
