@@ -49,6 +49,7 @@ trait ScrapesHtmlWithFallback
 
         $primaryException = null;
         $statusCode = null;
+        $body = null;
 
         try {
             $response = $this->client?->get($url, [
@@ -60,10 +61,21 @@ trait ScrapesHtmlWithFallback
                 $body = $response->getBody()->getContents();
 
                 if (is_string($body) && trim($body) !== '') {
-                    return $body;
-                }
+                    $missingSelector = $waitForSelector
+                        && $this->scrapingantEnabled
+                        && ! $this->selectorFoundInHtml($body, $waitForSelector);
 
-                $primaryException = new Exception("Empty HTML response from {$url}");
+                    if ($missingSelector) {
+                        Log::info('Selector missing, attempting ScrapingAnt fallback', [
+                            'url' => $url,
+                            'wait_for_selector' => $waitForSelector,
+                        ]);
+                    } else {
+                        return $body;
+                    }
+                } else {
+                    $primaryException = new Exception("Empty HTML response from {$url}");
+                }
             } elseif ($response) {
                 $statusCode = $response->getStatusCode();
 
@@ -110,10 +122,41 @@ trait ScrapesHtmlWithFallback
             ]);
         }
 
+        if ($body !== null && trim($body) !== '') {
+            Log::info('Returning direct response despite fallback miss', [
+                'url' => $url,
+                'status' => $statusCode,
+                'wait_for_selector' => $waitForSelector,
+            ]);
+
+            return $body;
+        }
+
         if ($primaryException !== null) {
             throw $primaryException;
         }
 
         throw new Exception("Failed to fetch HTML from {$url}");
+    }
+
+    protected function selectorFoundInHtml(string $html, string $selector): bool
+    {
+        if (str_contains($html, $selector)) {
+            return true;
+        }
+
+        if (str_starts_with($selector, '#')) {
+            $id = ltrim($selector, '#');
+
+            return (bool) preg_match('/id=(["\'])'.preg_quote($id, '/').'\1/i', $html);
+        }
+
+        if (str_starts_with($selector, '.')) {
+            $class = ltrim($selector, '.');
+
+            return (bool) preg_match('/class=(["\']).*?\b'.preg_quote($class, '/').'\b.*?\1/i', $html);
+        }
+
+        return false;
     }
 }

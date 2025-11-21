@@ -1,8 +1,5 @@
 <?php
 
-use DOMDocument;
-use DOMXPath;
-
 if (! function_exists('registrar_normalize_cookies')) {
     function registrar_normalize_cookies(?string $cookies): ?string
     {
@@ -49,5 +46,36 @@ if (! function_exists('registrar_create_xpath')) {
         libxml_use_internal_errors($internalErrors);
 
         return new DOMXPath($dom);
+    }
+}
+
+if (! function_exists('registrar_extract_table_rows')) {
+    function registrar_extract_table_rows(string $html, string $tableId): array
+    {
+        $tableFound = str_contains($html, $tableId);
+        $xpath = registrar_create_xpath($html);
+
+        $rows = $xpath->query("//table[@id=\"{$tableId}\"]//tr");
+        $tableCount = $xpath->query("//table[@id=\"{$tableId}\"]")?->length ?? 0;
+        $rowCount = $rows?->length ?? 0;
+
+        if ($rowCount === 0) {
+            $pattern = '/<table[^>]*id=["\']'.preg_quote($tableId, '/').'["\'][\s\S]*?<\/table>/i';
+
+            if (preg_match($pattern, $html, $matches)) {
+                $tableHtml = '<html><body>'.$matches[0].'</body></html>';
+                $xpath = registrar_create_xpath($tableHtml);
+                $rows = $xpath->query("//table[@id=\"{$tableId}\"]//tr");
+                $rowCount = $rows?->length ?? 0;
+                $tableCount = max($tableCount, 1);
+            }
+        }
+
+        return [
+            'rows' => $rows ? collect(iterator_to_array($rows))->filter(fn ($node) => $node instanceof DOMElement) : collect(),
+            'table_found' => $tableFound,
+            'table_count' => $tableCount,
+            'row_count' => $rowCount,
+        ];
     }
 }

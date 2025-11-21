@@ -339,13 +339,37 @@ class IdwebhostService
         }
 
         try {
-            $html = $this->fetchHtml('https://member.idwebhost.com/clientarea.php?action=domains', 'table#tableDomainsList');
+            $cookies = registrar_normalize_cookies($this->getCookies());
+
+            Log::info('[IDwebhost] getDomains starting', [
+                'registrar_id' => $this->registrar->id ?? null,
+                'cookies_present' => $cookies !== null,
+                'cookies_length' => $cookies ? strlen($cookies) : 0,
+            ]);
+
+            $html = $this->fetchHtmlWithFallback(
+                'https://member.idwebhost.com/clientarea.php?action=domains',
+                $cookies,
+                'table#tableDomainsList'
+            );
 
             if (! is_string($html) || trim($html) === '') {
                 throw new Exception('Empty HTML response from IDwebhost domains page.');
             }
 
-            return $this->parseDomainsFromHtml($html);
+            Log::info('[IDwebhost] getDomains fetched HTML', [
+                'registrar_id' => $this->registrar->id ?? null,
+                'html_length' => strlen($html),
+            ]);
+
+            $domains = $this->parseDomainsFromHtml($html);
+
+            Log::info('[IDwebhost] getDomains parsed rows', [
+                'registrar_id' => $this->registrar->id ?? null,
+                'count' => $domains->count(),
+            ]);
+
+            return $domains;
         } catch (GuzzleException|Exception $e) {
             $statusCode = null;
             $responseBody = null;
@@ -368,7 +392,6 @@ class IdwebhostService
 
     public function getDomain(string $domainName): array
     {
-        // TODO: implement domain fetch when integration is ready.
         return [];
     }
 
@@ -458,11 +481,18 @@ class IdwebhostService
 
     protected function parseDomainsFromHtml(string $html): Collection
     {
-        $xpath = registrar_create_xpath($html);
+        $extracted = registrar_extract_table_rows($html, 'tableDomainsList');
+        $rows = $extracted['rows'];
+        $rowCount = $extracted['row_count'];
 
-        $rows = $xpath->query('//table[@id="tableDomainsList"]/tbody/tr');
+        Log::info('[IDwebhost] Domains table rows status', [
+            'registrar_id' => $this->registrar->id ?? null,
+            'table_found' => $extracted['table_found'],
+            'table_count' => $extracted['table_count'],
+            'row_count' => $rowCount,
+        ]);
 
-        if (! $rows || $rows->length === 0) {
+        if ($rowCount === 0) {
             return collect();
         }
 
@@ -500,6 +530,21 @@ class IdwebhostService
         }
 
         return collect($domains);
+    }
+
+    protected function fallbackParseTableRows(string $html, string $tableId): Collection
+    {
+        $pattern = '/<table[^>]*id=["\']'.preg_quote($tableId, '/').'["\'][\s\S]*?<\/table>/i';
+
+        if (! preg_match($pattern, $html, $matches)) {
+            return collect();
+        }
+
+        $tableHtml = '<html><body>'.$matches[0].'</body></html>';
+        $xpath = registrar_create_xpath($tableHtml);
+        $rows = $xpath->query('//table[@id="'.$tableId.'"]//tr');
+
+        return $rows ? collect(iterator_to_array($rows)) : collect();
     }
 
     protected function extractDomainNameFromCell(?DOMElement $td): ?string

@@ -12,6 +12,8 @@ return new class extends Migration
             $table->date('registration_date')->nullable()->change();
             $table->date('expiration_date')->nullable()->change();
             $table->json('nameservers')->default('[]')->change();
+            $table->boolean('security_lock')->nullable()->change();
+            $table->boolean('whois_privacy')->nullable()->change();
         });
     }
 
@@ -21,6 +23,8 @@ return new class extends Migration
             $table->date('registration_date')->nullable(false)->change();
             $table->date('expiration_date')->nullable(false)->change();
             $table->json('nameservers')->default(null)->change();
+            $table->boolean('security_lock')->nullable(false)->change();
+            $table->boolean('whois_privacy')->nullable(false)->change();
         });
     }
 };

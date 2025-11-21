@@ -29,38 +29,95 @@ class ScrapingantService
     {
         $apiKey = $this->getApiKey();
 
-        $query = [
-            'url' => $url,
+        $proxyCountries = [
+            'US',
+            'AE',
+            'BR',
+            'CA',
+            'CN',
+            'CZ',
+            'DE',
+            'ES',
+            'FR',
+            'GB',
+            'HK',
+            'IN',
+            'IT',
+            'JP',
+            'NL',
+            'PL',
+            'RU',
+            'SA',
+            'SG',
+            'ID',
+            'KR',
+            'VN',
+        ];
+
+        $baseQuery = [
+            'url' => rawurlencode($url),
             'x-api-key' => $apiKey,
+            'proxy_country' => $proxyCountries[array_rand($proxyCountries)],
         ];
 
         if ($waitForSelector !== null) {
-            $query['wait_for_selector'] = $waitForSelector;
+            $baseQuery['wait_for_selector'] = rawurlencode($waitForSelector);
         }
 
         if ($cookies !== null && trim($cookies) !== '') {
-            $query['cookies'] = $cookies;
+            $baseQuery['cookies'] = rawurlencode($cookies);
         }
 
+        return $this->sendRequestWithRetry($baseQuery);
+    }
+
+    protected function sendRequestWithRetry(array $query): ?string
+    {
+        $attempts = [
+            $query,
+            array_merge($query, ['browser' => 'false']),
+        ];
+
+        foreach ($attempts as $payload) {
+            $response = $this->sendRequest($payload);
+
+            if ($response !== null) {
+                return $response;
+            }
+        }
+
+        return null;
+    }
+
+    protected function sendRequest(array $query): ?string
+    {
         try {
+            Log::info('ScrapingAnt request', [
+                'url' => $query['url'],
+                'wait_for_selector' => $query['wait_for_selector'] ?? null,
+                'cookies_present' => isset($query['cookies']) && trim($query['cookies']) !== '',
+                'cookies_length' => isset($query['cookies']) ? strlen($query['cookies']) : 0,
+                'proxy_country' => $query['proxy_country'] ?? null,
+                'browser' => $query['browser'] ?? null,
+            ]);
+
             $response = $this->client->get('/v2/general', ['query' => $query]);
             $statusCode = $response->getStatusCode();
+            $body = $response->getBody()->getContents();
 
             if ($statusCode !== 200) {
                 Log::warning('ScrapingAnt returned non-200 status.', [
-                    'url' => $url,
+                    'url' => $query['url'],
                     'status_code' => $statusCode,
-                    'body' => $response->getBody()->getContents(),
+                    'body' => $body,
                 ]);
 
                 return null;
             }
 
-            $body = $response->getBody()->getContents();
-
             if (! is_string($body) || trim($body) === '') {
                 Log::warning('ScrapingAnt returned empty body.', [
-                    'url' => $url,
+                    'url' => $query['url'],
                     'status_code' => $statusCode,
                 ]);
 
@@ -78,7 +135,7 @@ class ScrapingantService
             }
 
             Log::warning('ScrapingAnt request failed.', [
-                'url' => $url,
+                'url' => $query['url'],
                 'error' => $exception->getMessage(),
                 'status_code' => $statusCode,
                 'response_body' => $responseBody,

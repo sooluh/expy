@@ -118,7 +118,7 @@ class RegistrarForm
                     ->belowContent('Format: cookie_name_1=cookie_value_1;cookie_name_2=...')
                     ->password()
                     ->revealable()
-                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === RegistrarCode::IDWEBHOST)
+                    ->visible(fn (callable $get) => in_array(self::resolveApiSupport($get('api_support')), [RegistrarCode::IDWEBHOST, RegistrarCode::IDCLOUDHOST]))
                     ->dehydrated()
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {
