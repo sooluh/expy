@@ -14,6 +14,7 @@ class RegistrarServiceFactory
             RegistrarCode::DYNADOT => new DynadotService($registrar),
             RegistrarCode::PORKBUN => new PorkbunService($registrar),
             RegistrarCode::IDWEBHOST => new IdwebhostService($registrar, app(ScrapingantService::class)),
+            RegistrarCode::IDCLOUDHOST => new IdcloudhostService($registrar, app(ScrapingantService::class)),
             RegistrarCode::NONE => null,
             default => null,
         };

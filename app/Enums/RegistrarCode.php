@@ -13,6 +13,7 @@ enum RegistrarCode: int implements HasLabel
     // case NAMECHEAP = 4;
     // case GODADDY = 5;
     case IDWEBHOST = 6;
+    case IDCLOUDHOST = 7;
 
     public function getLabel(): string
     {
@@ -24,6 +25,7 @@ enum RegistrarCode: int implements HasLabel
             // self::NAMECHEAP => 'Namecheap',
             // self::GODADDY => 'GoDaddy',
             self::IDWEBHOST => 'IDwebhost',
+            self::IDCLOUDHOST => 'IDCloudHost',
         };
     }
 }

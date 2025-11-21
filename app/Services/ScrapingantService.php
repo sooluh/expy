@@ -11,7 +11,7 @@ use RuntimeException;
 
 class ScrapingantService
 {
-    public const BASE_URL = 'https://api.scrapingant.com/v2';
+    public const BASE_URL = 'https://api.scrapingant.com';
 
     private Client $client;
 
@@ -21,7 +21,7 @@ class ScrapingantService
     ) {
         $this->client = $client ?? new Client([
             'base_uri' => self::BASE_URL,
-            'http_errors' => true,
+            'http_errors' => false,
         ]);
     }
 
@@ -43,7 +43,31 @@ class ScrapingantService
         }
 
         try {
-            $response = $this->client->get('/general', ['query' => $query]);
+            $response = $this->client->get('/v2/general', ['query' => $query]);
+            $statusCode = $response->getStatusCode();
+
+            if ($statusCode !== 200) {
+                Log::warning('ScrapingAnt returned non-200 status.', [
+                    'url' => $url,
+                    'status_code' => $statusCode,
+                    'body' => $response->getBody()->getContents(),
+                ]);
+
+                return null;
+            }
+
+            $body = $response->getBody()->getContents();
+
+            if (! is_string($body) || trim($body) === '') {
+                Log::warning('ScrapingAnt returned empty body.', [
+                    'url' => $url,
+                    'status_code' => $statusCode,
+                ]);
+
+                return null;
+            }
+
+            return $body;
         } catch (GuzzleException $exception) {
             $statusCode = null;
             $responseBody = null;
@@ -53,17 +77,15 @@ class ScrapingantService
                 $responseBody = $exception->getResponse()->getBody()->getContents();
             }
 
-            Log::error('Failed to fetch data from ScrapingAnt.', [
+            Log::warning('ScrapingAnt request failed.', [
                 'url' => $url,
                 'error' => $exception->getMessage(),
                 'status_code' => $statusCode,
                 'response_body' => $responseBody,
             ]);
 
-            throw new RuntimeException('Failed to fetch data from ScrapingAnt.', 0, $exception);
+            return null;
         }
-
-        return $response->getBody()->getContents();
     }
 
     public function getApiKey(): string

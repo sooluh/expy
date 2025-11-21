@@ -3,6 +3,7 @@
 namespace App\Services\Registrars;
 
 use App\Concerns\RegistrarService;
+use App\Concerns\ScrapesHtmlWithFallback;
 use App\Jobs\SyncRegistrarTypePricesJob;
 use App\Models\Registrar;
 use App\Services\ScrapingantService;
@@ -21,7 +22,7 @@ use Throwable;
 
 class IdwebhostService
 {
-    use RegistrarService;
+    use RegistrarService, ScrapesHtmlWithFallback;
 
     public const BASE_URL = 'https://idwebhost.com';
 
@@ -43,21 +44,10 @@ class IdwebhostService
 
     protected Client $client;
 
-    protected ?ScrapingantService $scrapingantService;
-
-    protected bool $scrapingantEnabled = false;
-
     public function __construct(Registrar $registrar, ScrapingantService $scrapingantService)
     {
         $this->registrar = $registrar;
-        $this->scrapingantService = $scrapingantService;
-
-        try {
-            $this->scrapingantService->getApiKey();
-            $this->scrapingantEnabled = true;
-        } catch (Throwable) {
-            $this->scrapingantEnabled = false;
-        }
+        $this->bootScrapingant($scrapingantService);
 
         $this->client = new Client([
             'base_uri' => self::BASE_URL,
@@ -236,23 +226,30 @@ class IdwebhostService
 
     protected function fetchPricingPageContext(): array
     {
-        $response = $this->client->get('https://idwebhost.com/domain-murah', [
-            'headers' => [
-                'Accept' => 'text/html,application/xhtml+xml',
-            ],
-            'http_errors' => false,
-        ]);
+        $setCookies = [];
 
-        $html = $response->getBody()->getContents();
+        try {
+            $response = $this->client->get('https://idwebhost.com/domain-murah', [
+                'http_errors' => false,
+                'headers' => [
+                    'Accept' => 'text/html,application/xhtml+xml',
+                ],
+            ]);
 
-        if (! is_string($html) || trim($html) === '') {
-            throw new Exception('Empty HTML response from IDwebhost.');
+            $setCookies = $response->getHeader('Set-Cookie');
+            $html = $response->getBody()->getContents();
+
+            if (! is_string($html) || trim($html) === '') {
+                throw new Exception('Empty HTML response from IDwebhost.');
+            }
+        } catch (Exception $e) {
+            $html = $this->fetchHtmlWithFallback('https://idwebhost.com/domain-murah');
         }
 
         return [
             'html' => $html,
             'csrfToken' => $this->extractCsrfToken($html),
-            'cookieForAjax' => $this->buildCookieForAjax($response->getHeader('Set-Cookie')),
+            'cookieForAjax' => $this->buildCookieForAjax($setCookies),
         ];
     }
 
@@ -380,41 +377,13 @@ class IdwebhostService
     protected function fetchHtml(string $url, ?string $waitForSelector = null): string
     {
         $cookies = $this->normalizeCookies($this->getCookies());
+        $html = $this->fetchHtmlWithFallback($url, $cookies, $waitForSelector);
 
-        if ($this->scrapingantEnabled && $this->scrapingantService !== null) {
-            try {
-                $html = $this->scrapingantService->scrape(
-                    $url,
-                    $waitForSelector,
-                    $cookies,
-                );
-                if (is_string($html) && trim($html) !== '') {
-                    return $html;
-                }
-            } catch (Exception $e) {
-                Log::warning('ScrapingAnt failed, falling back to direct HTTP', [
-                    'registrar_id' => $this->registrar->id ?? null,
-                    'url' => $url,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        if (! is_string($html) || trim($html) === '') {
+            throw new Exception("IDwebhost request failed ({$url}): empty body");
         }
 
-        $headers = [
-            'Accept' => 'text/html,application/xhtml+xml',
-        ];
-
-        if ($cookies) {
-            $headers['Cookie'] = $cookies;
-        }
-
-        $response = $this->client->get($url, ['headers' => $headers]);
-
-        if ($response->getStatusCode() !== 200) {
-            throw new Exception("IDwebhost request failed ({$url}): {$response->getStatusCode()}");
-        }
-
-        return $response->getBody()->getContents();
+        return $html;
     }
 
     protected function normalizeCookies(?string $cookies): ?string

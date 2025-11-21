@@ -20,7 +20,7 @@ class IanaService
     {
         $this->client = $client ?? new Client([
             'base_uri' => self::BASE_URL,
-            'http_errors' => true,
+            'http_errors' => false,
             'headers' => [
                 'Accept' => 'application/json',
             ],
@@ -31,6 +31,15 @@ class IanaService
     {
         try {
             $response = $this->client->get('/rdap/dns.json');
+
+            if ($response->getStatusCode() !== 200) {
+                Log::warning('IANA RDAP fetch returned non-200', [
+                    'status_code' => $response->getStatusCode(),
+                    'body' => $response->getBody()->getContents(),
+                ]);
+
+                return null;
+            }
         } catch (GuzzleException $exception) {
             $statusCode = null;
             $responseBody = null;

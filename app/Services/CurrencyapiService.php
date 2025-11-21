@@ -21,7 +21,7 @@ class CurrencyapiService
     ) {
         $this->client = $client ?? new Client([
             'base_uri' => self::BASE_URL,
-            'http_errors' => true,
+            'http_errors' => false,
             'headers' => [
                 'Accept' => 'application/json',
             ],
@@ -38,6 +38,16 @@ class CurrencyapiService
                     'apikey' => $apiKey,
                 ],
             ]);
+
+            if ($response->getStatusCode() !== 200) {
+                Log::error('Failed to fetch latest currencies.', [
+                    'error' => 'Currencyapi returned non-200 status',
+                    'status_code' => $response->getStatusCode(),
+                    'response_body' => $response->getBody()->getContents(),
+                ]);
+
+                return [];
+            }
         } catch (GuzzleException $exception) {
             $statusCode = null;
             $responseBody = null;
