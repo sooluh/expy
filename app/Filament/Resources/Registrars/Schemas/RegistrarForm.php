@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Registrars\Schemas;
 
-use App\Concerns\RegistrarService;
 use App\Enums\RegistrarCode;
+use App\Support\Concerns\RegistrarService;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;

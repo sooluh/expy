@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Concerns;
+namespace App\Support\Concerns;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Filesystem\FilesystemAdapter;

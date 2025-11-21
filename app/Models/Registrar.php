@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Enums\RegistrarCode;
-use App\Services\Registrars\RegistrarServiceFactory;
+use App\Support\RegistrarServiceFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;

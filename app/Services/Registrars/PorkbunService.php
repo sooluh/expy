@@ -2,8 +2,8 @@
 
 namespace App\Services\Registrars;
 
-use App\Concerns\RegistrarService;
 use App\Models\Registrar;
+use App\Support\Concerns\RegistrarService;
 use Carbon\Carbon;
 use Exception;
 use GuzzleHttp\Client;

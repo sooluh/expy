@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Concerns;
+namespace App\Support\Concerns;
 
 use Exception;
 use Illuminate\Support\Facades\Log;
@@ -66,10 +66,12 @@ trait ScrapesHtmlWithFallback
                 $primaryException = new Exception("Empty HTML response from {$url}");
             } elseif ($response) {
                 $statusCode = $response->getStatusCode();
+
                 Log::warning('Direct fetch failed, will try fallback', [
                     'url' => $url,
                     'status' => $statusCode,
                 ]);
+
                 $primaryException = new Exception("Request failed ({$url}): {$statusCode}");
             }
         } catch (Exception $e) {
@@ -83,6 +85,7 @@ trait ScrapesHtmlWithFallback
                     'status' => $statusCode,
                     'wait_for_selector' => $waitForSelector,
                 ]);
+
                 $html = $this->scrapingantService->scrape(
                     $url,
                     $waitForSelector,

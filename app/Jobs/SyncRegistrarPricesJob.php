@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Concerns\SyncsRegistrarFees;
 use App\Models\Registrar;
 use App\Models\User;
+use App\Support\Concerns\SyncsRegistrarFees;
 use Exception;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;

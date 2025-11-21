@@ -1,9 +1,13 @@
 <?php
 
-namespace App\Services\Registrars;
+namespace App\Support;
 
 use App\Enums\RegistrarCode;
 use App\Models\Registrar;
+use App\Services\Registrars\DynadotService;
+use App\Services\Registrars\IdcloudhostService;
+use App\Services\Registrars\IdwebhostService;
+use App\Services\Registrars\PorkbunService;
 use App\Services\ScrapingantService;
 
 class RegistrarServiceFactory

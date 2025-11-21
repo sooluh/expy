@@ -2,15 +2,13 @@
 
 namespace App\Services\Registrars;
 
-use App\Concerns\RegistrarService;
-use App\Concerns\ScrapesHtmlWithFallback;
 use App\Jobs\SyncRegistrarTypePricesJob;
 use App\Models\Registrar;
 use App\Services\ScrapingantService;
+use App\Support\Concerns\RegistrarService;
+use App\Support\Concerns\ScrapesHtmlWithFallback;
 use Carbon\Carbon;
-use DOMDocument;
 use DOMElement;
-use DOMXPath;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -271,7 +269,7 @@ class IdwebhostService
             return null;
         }
 
-        return $this->normalizeCookies($cookieForAjax);
+        return registrar_normalize_cookies($cookieForAjax);
     }
 
     protected function generateRandomDomain(): string
@@ -376,7 +374,7 @@ class IdwebhostService
 
     protected function fetchHtml(string $url, ?string $waitForSelector = null): string
     {
-        $cookies = $this->normalizeCookies($this->getCookies());
+        $cookies = registrar_normalize_cookies($this->getCookies());
         $html = $this->fetchHtmlWithFallback($url, $cookies, $waitForSelector);
 
         if (! is_string($html) || trim($html) === '') {
@@ -386,30 +384,9 @@ class IdwebhostService
         return $html;
     }
 
-    protected function normalizeCookies(?string $cookies): ?string
-    {
-        if ($cookies === null || trim($cookies) === '') {
-            return null;
-        }
-
-        return preg_replace('/\s*;\s*/', '; ', trim($cookies)) ?: $cookies;
-    }
-
-    protected function createXPath(string $html): DOMXPath
-    {
-        $dom = new DOMDocument;
-
-        $internalErrors = libxml_use_internal_errors(true);
-        $dom->loadHTML($html);
-        libxml_clear_errors();
-        libxml_use_internal_errors($internalErrors);
-
-        return new DOMXPath($dom);
-    }
-
     protected function parsePricesFromHtml(string $html): Collection
     {
-        $xpath = $this->createXPath($html);
+        $xpath = registrar_create_xpath($html);
 
         $options = $xpath->query(
             '//select[@data-hs-select and option[@value=""]]/option[@value != ""]'
@@ -437,7 +414,7 @@ class IdwebhostService
 
             $dataAttr = $option->getAttribute('data-hs-select-option');
             $priceText = $this->extractDescriptionFromDataAttribute($dataAttr);
-            $priceValue = $this->parseIdrPrice($priceText);
+            $priceValue = registrar_parse_idr_price($priceText);
 
             if ($priceValue === null) {
                 continue;
@@ -479,31 +456,9 @@ class IdwebhostService
         return is_string($description) ? $description : null;
     }
 
-    protected function parseIdrPrice(?string $price): ?float
-    {
-        if ($price === null) {
-            return null;
-        }
-
-        $clean = preg_replace('/[^\d,\.]/', '', $price);
-
-        if ($clean === null || $clean === '') {
-            return null;
-        }
-
-        $clean = str_replace('.', '', $clean);
-        $clean = str_replace(',', '.', $clean);
-
-        if ($clean === '' || ! is_numeric($clean)) {
-            return null;
-        }
-
-        return (float) $clean;
-    }
-
     protected function parseDomainsFromHtml(string $html): Collection
     {
-        $xpath = $this->createXPath($html);
+        $xpath = registrar_create_xpath($html);
 
         $rows = $xpath->query('//table[@id="tableDomainsList"]/tbody/tr');
 

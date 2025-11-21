@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Concerns;
+namespace App\Support\Concerns;
 
 use App\Enums\RegistrarCode;
 use App\Models\Currency;

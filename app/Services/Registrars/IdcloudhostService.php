@@ -2,13 +2,11 @@
 
 namespace App\Services\Registrars;
 
-use App\Concerns\RegistrarService;
-use App\Concerns\ScrapesHtmlWithFallback;
 use App\Models\Registrar;
 use App\Services\ScrapingantService;
-use DOMDocument;
+use App\Support\Concerns\RegistrarService;
+use App\Support\Concerns\ScrapesHtmlWithFallback;
 use DOMElement;
-use DOMXPath;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -80,7 +78,7 @@ class IdcloudhostService
 
     protected function parsePricesFromHtml(string $html): Collection
     {
-        $xpath = $this->createXPath($html);
+        $xpath = registrar_create_xpath($html);
         $items = $xpath->query("//ul[contains(concat(' ', normalize-space(@class), ' '), ' nonmobile ')]/li");
 
         if (! $items || $items->length === 0) {
@@ -109,9 +107,9 @@ class IdcloudhostService
 
             $tldRaw = $data['domain'] ?? null;
             $tld = $tldRaw ? ltrim($tldRaw, '.') : null;
-            $registerPrice = $this->parseIdrPrice($data['register'] ?? null);
-            $renewPrice = $this->parseIdrPrice($data['renewal'] ?? null);
-            $transferPrice = $this->parseIdrPrice($data['transfer'] ?? null);
+            $registerPrice = registrar_parse_idr_price($data['register'] ?? null);
+            $renewPrice = registrar_parse_idr_price($data['renewal'] ?? null);
+            $transferPrice = registrar_parse_idr_price($data['transfer'] ?? null);
 
             if (! $tld || $registerPrice === null) {
                 continue;
@@ -129,39 +127,5 @@ class IdcloudhostService
         }
 
         return collect($result);
-    }
-
-    protected function createXPath(string $html): DOMXPath
-    {
-        $dom = new DOMDocument;
-        $internalErrors = libxml_use_internal_errors(true);
-
-        $dom->loadHTML($html);
-        libxml_clear_errors();
-        libxml_use_internal_errors($internalErrors);
-
-        return new DOMXPath($dom);
-    }
-
-    protected function parseIdrPrice(?string $price): ?float
-    {
-        if ($price === null) {
-            return null;
-        }
-
-        $clean = preg_replace('/[^\d,\.]/', '', $price);
-
-        if ($clean === null || $clean === '') {
-            return null;
-        }
-
-        $clean = str_replace('.', '', $clean);
-        $clean = str_replace(',', '.', $clean);
-
-        if ($clean === '' || ! is_numeric($clean)) {
-            return null;
-        }
-
-        return (float) $clean;
     }
 }

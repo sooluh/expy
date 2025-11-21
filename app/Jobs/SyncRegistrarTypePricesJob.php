@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Concerns\SyncsRegistrarFees;
 use App\Models\Registrar;
+use App\Support\Concerns\SyncsRegistrarFees;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;

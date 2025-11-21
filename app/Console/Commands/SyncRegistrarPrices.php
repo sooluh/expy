@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Concerns\SyncsRegistrarFees;
 use App\Enums\RegistrarCode;
 use App\Models\Registrar;
+use App\Support\Concerns\SyncsRegistrarFees;
 use Exception;
 use Illuminate\Console\Command;
 

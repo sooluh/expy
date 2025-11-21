@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Concerns\HasAvatar;
+use App\Support\Concerns\HasAvatar;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Models\Contracts\FilamentUser;
