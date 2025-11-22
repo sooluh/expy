@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\User;
+use App\Settings\GeneralSettings;
+use Illuminate\Support\Facades\Auth;
+
 if (! function_exists('registrar_normalize_cookies')) {
     function registrar_normalize_cookies(?string $cookies): ?string
     {
@@ -77,5 +81,19 @@ if (! function_exists('registrar_extract_table_rows')) {
             'table_count' => $tableCount,
             'row_count' => $rowCount,
         ];
+    }
+}
+
+if (! function_exists('registrar_display_currency_code')) {
+    function registrar_display_currency_code(?User $user = null): string
+    {
+        $user = $user ?? Auth::user();
+        $candidate = $user?->settings['currency'] ?? null;
+
+        if (is_string($candidate) && trim($candidate) !== '') {
+            return $candidate;
+        }
+
+        return app(GeneralSettings::class)->currency;
     }
 }

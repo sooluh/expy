@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Domains\Tables;
 
-use App\Settings\GeneralSettings;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -54,7 +53,7 @@ class DomainsTable
 
                 TextColumn::make('registrarFee.renew_price_converted')
                     ->label('Renew price')
-                    ->money(fn () => app(GeneralSettings::class)->currency)
+                    ->money(fn () => registrar_display_currency_code())
                     ->placeholder('—'),
 
                 TextColumn::make('registration_date')

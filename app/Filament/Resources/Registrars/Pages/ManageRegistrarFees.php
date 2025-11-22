@@ -7,7 +7,6 @@ use App\Filament\Resources\Registrars\Schemas\RegistrarFeeForm;
 use App\Filament\Resources\Registrars\Tables\RegistrarFeesTable;
 use App\Jobs\SyncRegistrarPricesJob;
 use App\Models\Currency;
-use App\Settings\GeneralSettings;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -37,7 +36,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
 
     protected function getDisplayCurrencyCode(): string
     {
-        return app(GeneralSettings::class)->currency;
+        return registrar_display_currency_code();
     }
 
     protected function getRegistrarCurrencyCode(): string

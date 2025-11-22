@@ -3,11 +3,13 @@
 namespace App\Http\Livewire;
 
 use App\Models\Currency;
+use App\Models\User;
 use App\Settings\GeneralSettings;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class CurrencySelector extends Component implements HasForms
@@ -18,7 +20,11 @@ class CurrencySelector extends Component implements HasForms
 
     public function mount(GeneralSettings $settings): void
     {
-        $this->form->fill(['currency' => $settings->currency]);
+        $user = Auth::user();
+        $default = $settings->currency;
+        $current = $user?->settings['currency'] ?? $default;
+
+        $this->form->fill(['currency' => $current]);
     }
 
     public function form(Schema $schema): Schema
@@ -33,8 +39,15 @@ class CurrencySelector extends Component implements HasForms
                     ->live()
                     ->required()
                     ->afterStateUpdated(function ($state, GeneralSettings $settings) {
-                        $settings->currency = $state;
-                        $settings->save();
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        if ($user) {
+                            $user->settings(['currency' => $state]);
+                        } else {
+                            $settings->currency = $state;
+                            $settings->save();
+                        }
 
                         request()->header('Referer')
                             ? redirect(request()->header('Referer'))

@@ -109,10 +109,10 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - Use appropriate PHP type hints for method parameters.
 
 <code-snippet name="Explicit Return Types and Method Params" lang="php">
-protected function isAccessible(User $user, ?string $path = null): bool
-{
-    ...
-}
+    protected function isAccessible(User $user, ?string $path = null): bool
+    {
+        ...
+    }
 </code-snippet>
 
 ## Comments
@@ -247,10 +247,10 @@ protected function isAccessible(User $user, ?string $path = null): bool
         ->assertStatus(200);
 </code-snippet>
 
-    <code-snippet name="Testing a Livewire component exists within a page" lang="php">
-        $this->get('/posts/create')
+<code-snippet name="Testing a Livewire component exists within a page" lang="php">
+    $this->get('/posts/create')
         ->assertSeeLivewire(CreatePost::class);
-    </code-snippet>
+</code-snippet>
 
 === livewire/v3 rules ===
 
@@ -278,18 +278,18 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - You can listen for `livewire:init` to hook into Livewire initialization, and `fail.status === 419` for the page expiring:
 
 <code-snippet name="livewire:load example" lang="js">
-document.addEventListener('livewire:init', function () {
-    Livewire.hook('request', ({ fail }) => {
-        if (fail && fail.status === 419) {
-            alert('Your session expired');
-        }
+    document.addEventListener('livewire:init', function () {
+        Livewire.hook('request', ({ fail }) => {
+            if (fail && fail.status === 419) {
+                alert('Your session expired');
+            }
+        });
+
+        Livewire.hook('message.failed', (message, component) => {
+            console.error(message);
+        });
     });
 
-    Livewire.hook('message.failed', (message, component) => {
-        console.error(message);
-    });
-
-});
 </code-snippet>
 
 === volt/core rules ===
@@ -305,25 +305,26 @@ document.addEventListener('livewire:init', function () {
 ### Volt Functional Component Example
 
 <code-snippet name="Volt Functional Component Example" lang="php">
-@volt
-<?php
-use function Livewire\Volt\{state, computed};
+    @volt
+    <?php
+    use function Livewire\Volt\{state, computed};
 
-state(['count' => 0]);
+    state(['count' => 0]);
 
-$increment = fn () => $this->count++;
-$decrement = fn () => $this->count--;
+    $increment = fn () => $this->count++;
+    $decrement = fn () => $this->count--;
 
-$double = computed(fn () => $this->count \* 2);
-?>
+    $double = computed(fn () => $this->count \* 2);
+    ?>
 
-<div>
-    <h1>Count: {{ $count }}</h1>
-    <h2>Double: {{ $this->double }}</h2>
-    <button wire:click="increment">+</button>
-    <button wire:click="decrement">-</button>
-</div>
-@endvolt
+    <div>
+        <h1>Count: {{ $count }}</h1>
+        <h2>Double: {{ $this->double }}</h2>
+        <button wire:click="increment">+</button>
+        <button wire:click="decrement">-</button>
+    </div>
+    @endvolt
+
 </code-snippet>
 
 ### Volt Class Based Component Example
@@ -331,22 +332,23 @@ $double = computed(fn () => $this->count \* 2);
 To get started, define an anonymous class that extends Livewire\Volt\Component. Within the class, you may utilize all of the features of Livewire using traditional Livewire syntax:
 
 <code-snippet name="Volt Class-based Volt Component Example" lang="php">
-use Livewire\Volt\Component;
+    use Livewire\Volt\Component;
 
-new class extends Component {
-public $count = 0;
+    new class extends Component {
+    public $count = 0;
 
-    public function increment()
-    {
-        $this->count++;
-    }
+        public function increment()
+        {
+            $this->count++;
+        }
 
-} ?>
+    } ?>
 
-<div>
-    <h1>{{ $count }}</h1>
-    <button wire:click="increment">+</button>
-</div>
+    <div>
+        <h1>{{ $count }}</h1>
+        <button wire:click="increment">+</button>
+    </div>
+
 </code-snippet>
 
 ### Testing Volt & Volt Components
@@ -354,58 +356,57 @@ public $count = 0;
 - Use the existing directory for tests if it already exists. Otherwise, fallback to `tests/Feature/Volt`.
 
 <code-snippet name="Livewire Test Example" lang="php">
-use Livewire\Volt\Volt;
+    use Livewire\Volt\Volt;
 
-test('counter increments', function () {
-Volt::test('counter')
-->assertSee('Count: 0')
-->call('increment')
-->assertSee('Count: 1');
-});
+    test('counter increments', function () {
+        Volt::test('counter')
+            ->assertSee('Count: 0')
+            ->call('increment')
+            ->assertSee('Count: 1');
+    });
+
 </code-snippet>
 
 <code-snippet name="Volt Component Test Using Pest" lang="php">
-declare(strict_types=1);
+    declare(strict_types=1);
 
-use App\Models\{User, Product};
-use Livewire\Volt\Volt;
+    use App\Models\{User, Product};
+    use Livewire\Volt\Volt;
 
-test('product form creates product', function () {
-$user = User::factory()->create();
+    test('product form creates product', function () {
+        $user = User::factory()->create();
 
-    Volt::test('pages.products.create')
-        ->actingAs($user)
-        ->set('form.name', 'Test Product')
-        ->set('form.description', 'Test Description')
-        ->set('form.price', 99.99)
-        ->call('create')
-        ->assertHasNoErrors();
+        Volt::test('pages.products.create')
+            ->actingAs($user)
+            ->set('form.name', 'Test Product')
+            ->set('form.description', 'Test Description')
+            ->set('form.price', 99.99)
+            ->call('create')
+            ->assertHasNoErrors();
 
-    expect(Product::where('name', 'Test Product')->exists())->toBeTrue();
+        expect(Product::where('name', 'Test Product')->exists())->toBeTrue();
+    });
 
-});
 </code-snippet>
 
 ### Common Patterns
 
 <code-snippet name="CRUD With Volt" lang="php">
-<?php
+    <?php
 
-use App\Models\Product;
-use function Livewire\Volt\{state, computed};
+    use App\Models\Product;
+    use function Livewire\Volt\{state, computed};
 
-state(['editing' => null, 'search' => '']);
+    state(['editing' => null, 'search' => '']);
 
-$products = computed(fn() => Product::when($this->search,
-fn($q) => $q->where('name', 'like', "%{$this->search}%")
-)->get());
+    $products = computed(fn() => Product::when($this->search, fn($q) => $q->where('name', 'like', "%{$this->search}%"))->get());
 
-$edit = fn(Product $product) => $this->editing = $product->id;
-$delete = fn(Product $product) => $product->delete();
+    $edit = fn(Product $product) => $this->editing = $product->id;
+    $delete = fn(Product $product) => $product->delete();
+    ?>
 
-?>
+    <!-- HTML / UI Here -->
 
-<!-- HTML / UI Here -->
 </code-snippet>
 
 <code-snippet name="Real-Time Search With Volt" lang="php">
@@ -526,10 +527,10 @@ $delete = fn(Product $product) => $product->delete();
 - Determine if you can use the `relationship()` method on form components when you need `options` for a select, checkbox, repeater, or when building a `Fieldset`:
 
 <code-snippet name="Relationship example for Form Select" lang="php">
-Forms\Components\Select::make('user_id')
-    ->label('Author')
-    ->relationship('author')
-    ->required(),
+    Forms\Components\Select::make('user_id')
+        ->label('Author')
+        ->relationship('author')
+        ->required(),
 </code-snippet>
 
 ## Testing

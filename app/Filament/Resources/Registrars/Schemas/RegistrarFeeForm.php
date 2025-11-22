@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Registrars\Schemas;
 
 use App\Filament\Resources\Registrars\Pages\ManageRegistrarFees;
-use App\Settings\GeneralSettings;
 use Filament\Forms\Components\TextInput;
 
 class RegistrarFeeForm
@@ -81,6 +80,6 @@ class RegistrarFeeForm
 
     protected static function currencyCode(ManageRegistrarFees $page): string
     {
-        return $page->getOwnerRecord()->currency->code ?? app(GeneralSettings::class)->currency;
+        return $page->getOwnerRecord()->currency->code ?? registrar_display_currency_code();
     }
 }

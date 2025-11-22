@@ -3,6 +3,7 @@
 namespace App\Filament\Clusters\Settings\Pages;
 
 use App\Filament\Clusters\Settings\SettingsCluster;
+use App\Models\Currency;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -47,6 +48,7 @@ class Other extends Page implements HasForms
 
         $this->data = [
             'timezone' => $user->settings['timezone'] ?? config('app.timezone'),
+            'currency' => $user->settings['currency'] ?? registrar_display_currency_code($user),
         ];
     }
 
@@ -81,6 +83,16 @@ class Other extends Page implements HasForms
                             ->columnSpanFull()
                             ->options(collect(timezone_identifiers_list())->mapWithKeys(fn ($val) => [$val => $val])->toArray()),
 
+                        Select::make('currency')
+                            ->label('Currency')
+                            ->searchable()
+                            ->required()
+                            ->options(
+                                Currency::orderBy('code')
+                                    ->pluck('code', 'code')
+                                    ->toArray()
+                            ),
+
                         ...$mfaComponents,
                     ]),
             ]);
@@ -102,6 +114,7 @@ class Other extends Page implements HasForms
 
         $payload = [
             'timezone' => $data['timezone'],
+            'currency' => $data['currency'],
         ];
 
         /** @var User $user */

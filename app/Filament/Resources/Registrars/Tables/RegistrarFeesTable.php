@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Registrars\Tables;
 
 use App\Filament\Resources\Registrars\Pages\ManageRegistrarFees;
 use App\Filament\Resources\Registrars\Schemas\RegistrarFeeForm;
-use App\Settings\GeneralSettings;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -28,7 +27,7 @@ class RegistrarFeesTable
 
                 TextColumn::make('register_price_converted')
                     ->label('Register')
-                    ->money(fn () => app(GeneralSettings::class)->currency)
+                    ->money(fn () => registrar_display_currency_code())
                     ->placeholder('—')
                     ->sortable(query: function ($query, $direction) {
                         return $query->orderBy('register_price', $direction);
@@ -36,7 +35,7 @@ class RegistrarFeesTable
 
                 TextColumn::make('renew_price_converted')
                     ->label('Renew')
-                    ->money(fn () => app(GeneralSettings::class)->currency)
+                    ->money(fn () => registrar_display_currency_code())
                     ->placeholder('—')
                     ->sortable(query: function ($query, $direction) {
                         return $query->orderBy('renew_price', $direction);
@@ -44,7 +43,7 @@ class RegistrarFeesTable
 
                 TextColumn::make('transfer_price_converted')
                     ->label('Transfer')
-                    ->money(fn () => app(GeneralSettings::class)->currency)
+                    ->money(fn () => registrar_display_currency_code())
                     ->placeholder('—')
                     ->sortable(query: function ($query, $direction) {
                         return $query->orderBy('transfer_price', $direction);
@@ -52,7 +51,7 @@ class RegistrarFeesTable
 
                 TextColumn::make('restore_price_converted')
                     ->label('Restore')
-                    ->money(fn () => app(GeneralSettings::class)->currency)
+                    ->money(fn () => registrar_display_currency_code())
                     ->placeholder('—')
                     ->sortable(query: function ($query, $direction) {
                         return $query->orderBy('restore_price', $direction);
@@ -60,7 +59,7 @@ class RegistrarFeesTable
 
                 TextColumn::make('privacy_price_converted')
                     ->label('Privacy')
-                    ->money(fn () => app(GeneralSettings::class)->currency)
+                    ->money(fn () => registrar_display_currency_code())
                     ->placeholder('—')
                     ->sortable(query: function ($query, $direction) {
                         return $query->orderBy('privacy_price', $direction);
@@ -68,7 +67,7 @@ class RegistrarFeesTable
 
                 TextColumn::make('misc_price_converted')
                     ->label('Misc')
-                    ->money(fn () => app(GeneralSettings::class)->currency)
+                    ->money(fn () => registrar_display_currency_code())
                     ->placeholder('—')
                     ->sortable(query: function ($query, $direction) {
                         return $query->orderBy('misc_price', $direction);
