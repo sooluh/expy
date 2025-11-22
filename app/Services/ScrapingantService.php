@@ -55,17 +55,17 @@ class ScrapingantService
         ];
 
         $baseQuery = [
-            'url' => rawurlencode($url),
+            'url' => $url,
             'x-api-key' => $apiKey,
             'proxy_country' => $proxyCountries[array_rand($proxyCountries)],
         ];
 
         if ($waitForSelector !== null) {
-            $baseQuery['wait_for_selector'] = rawurlencode($waitForSelector);
+            $baseQuery['wait_for_selector'] = $waitForSelector;
         }
 
         if ($cookies !== null && trim($cookies) !== '') {
-            $baseQuery['cookies'] = rawurlencode($cookies);
+            $baseQuery['cookies'] = $cookies;
         }
 
         return $this->sendRequestWithRetry($baseQuery);
