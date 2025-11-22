@@ -1,6 +1,6 @@
 {
   "resources/css/filament/studio/theme.css": {
-    "file": "assets/theme-D9UZDhkL.css",
+    "file": "assets/theme-98cYLgo5.css",
     "src": "resources/css/filament/studio/theme.css",
     "isEntry": true
   },
@@ -11,7 +11,7 @@
     "isEntry": true
   },
   "resources/scss/studio.scss": {
-    "file": "assets/studio-B1m_htKj.css",
+    "file": "assets/studio-DBzNirvv.css",
     "src": "resources/scss/studio.scss",
     "isEntry": true
   }

@@ -14,7 +14,7 @@ class ManageCurrencies extends ManageRecords
 {
     protected static string $resource = CurrencyResource::class;
 
-    protected function getHeaderActions(): array
+    protected function getActions(): array
     {
         return [
             Action::make('synchronize')

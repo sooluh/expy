@@ -94,7 +94,7 @@ class ManageRegistrarFees extends ManageRelatedRecords
         return $registrarPrice * $this->getRegistrarToDisplayRate();
     }
 
-    protected function getHeaderActions(): array
+    protected function getActions(): array
     {
         $actions = [];
 

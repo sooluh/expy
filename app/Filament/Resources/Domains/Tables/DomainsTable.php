@@ -7,6 +7,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\IconColumn;
@@ -79,6 +80,7 @@ class DomainsTable
             ->recordActions([
                 EditAction::make()->modalWidth(Width::Large),
                 DeleteAction::make(),
+                RestoreAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
