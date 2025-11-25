@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Registrar;
+use App\Support\Concerns\NotifiesJobFailure;
 use App\Support\Concerns\SyncsRegistrarFees;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,7 +12,9 @@ use Illuminate\Support\Facades\Log;
 
 class SyncRegistrarTypePricesJob implements ShouldQueue
 {
-    use Queueable, SyncsRegistrarFees;
+    use NotifiesJobFailure, Queueable, SyncsRegistrarFees;
+
+    public int $timeout = 180;
 
     public function __construct(
         public int $registrarId,
@@ -91,6 +94,12 @@ class SyncRegistrarTypePricesJob implements ShouldQueue
                 'type' => $this->type,
                 'error' => $e->getMessage(),
             ]);
+
+            $this->notifyFailure(
+                $this->userId,
+                'Registrar Price Sync Failed',
+                "Failed to sync {$this->type} prices: {$e->getMessage()}"
+            );
         }
     }
 }

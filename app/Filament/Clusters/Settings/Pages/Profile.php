@@ -23,6 +23,8 @@ class Profile extends Page implements HasForms
 
     protected string $view = 'filament.clusters.settings.pages.profile';
 
+    protected static bool $shouldCache = false;
+
     protected static ?string $cluster = SettingsCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'tabler-user';
@@ -68,7 +70,7 @@ class Profile extends Page implements HasForms
                             ->unique('users', 'username', ignorable: fn () => Auth::user()),
 
                         TextInput::make('name')
-                            ->label('Full name')
+                            ->label('Name')
                             ->required()
                             ->maxLength(255),
                     ]),

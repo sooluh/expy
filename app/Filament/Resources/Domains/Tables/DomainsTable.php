@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Domains\Tables;
 
+use App\Enums\DomainSyncStatus;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -37,6 +38,7 @@ class DomainsTable
                     ->label('')
                     ->icon(fn ($record) => $record->sync_status?->getIcon())
                     ->tooltip(fn ($record) => $record->sync_status?->getLabel())
+                    ->visible(fn ($record) => ($record?->sync_status ?? null) !== DomainSyncStatus::COMPLETED)
                     ->alignCenter()
                     ->grow(false),
 

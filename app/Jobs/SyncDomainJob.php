@@ -18,6 +18,8 @@ class SyncDomainJob implements ShouldQueue
 {
     use Queueable;
 
+    public int $timeout = 180;
+
     public function __construct(public int $domainId, public ?int $userId = null) {}
 
     public function handle(IanaService $ianaService, WhoisService $whoisService): void

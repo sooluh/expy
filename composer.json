@@ -5,6 +5,7 @@
   "license": "MIT",
   "require": {
     "php": "^8.2",
+    "caresome/filament-auth-designer": "^1.0",
     "cmsmaxinc/filament-error-pages": "^2.0",
     "codewithdennis/filament-simple-alert": "4.x",
     "filament/filament": "^4.0",
@@ -17,7 +18,8 @@
     "muazzam/slick-scrollbar": "^1.0",
     "qopiku/filament-sqids": "^0.0.1",
     "secondnetwork/blade-tabler-icons": "^3.35",
-    "spatie/laravel-settings": "^3.5"
+    "spatie/laravel-settings": "^3.5",
+    "tapp/filament-timezone-field": "^3.0"
   },
   "require-dev": {
     "fakerphp/faker": "^1.23",

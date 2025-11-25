@@ -10,6 +10,7 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class CurrencySelector extends Component implements HasForms
@@ -48,13 +49,20 @@ class CurrencySelector extends Component implements HasForms
                             $settings->currency = $state;
                             $settings->save();
                         }
-
-                        request()->header('Referer')
-                            ? redirect(request()->header('Referer'))
-                            : redirect()->refresh();
+                        $this->dispatch('currency-updated');
                     }),
             ])
             ->statePath('data');
+    }
+
+    #[On('currency-updated')]
+    public function reloadCurrency(GeneralSettings $settings): void
+    {
+        $user = Auth::user();
+        $default = $settings->currency;
+        $current = $user?->settings['currency'] ?? $default;
+
+        $this->form->fill(['currency' => $current]);
     }
 
     public function render()

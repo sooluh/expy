@@ -9,16 +9,12 @@ class SqidsService
 {
     private static ?Sqids $instance = null;
 
-    private const ALPHABET = config('filament-sqids.alphabet');
-
-    private const MIN_LENGTH = config('filament-sqids.min_length');
-
     public static function getInstance(): Sqids
     {
         if (self::$instance === null) {
             self::$instance = new Sqids(
-                alphabet: self::ALPHABET,
-                minLength: self::MIN_LENGTH
+                alphabet: self::alphabet(),
+                minLength: self::minLength()
             );
         }
 
@@ -32,5 +28,15 @@ class SqidsService
     public function __wakeup()
     {
         throw new Exception('Cannot unserialize singleton');
+    }
+
+    private static function alphabet(): string
+    {
+        return (string) config('filament-sqids.alphabet', '');
+    }
+
+    private static function minLength(): int
+    {
+        return (int) config('filament-sqids.min_length', 0);
     }
 }

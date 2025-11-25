@@ -15,6 +15,8 @@ class SyncRdapsJob implements ShouldQueue
 {
     use Queueable;
 
+    public int $timeout = 180;
+
     public function __construct(
         private int $userId,
     ) {}

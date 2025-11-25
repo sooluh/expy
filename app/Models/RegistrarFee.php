@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use App\Settings\GeneralSettings;
 use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Auth;
 
 class RegistrarFee extends Model
 {
@@ -47,9 +47,7 @@ class RegistrarFee extends Model
     protected function getCurrencyRate(): float
     {
         try {
-            /** @var GeneralSettings $settings */
-            $settings = app(GeneralSettings::class);
-            $displayCode = $settings->currency;
+            $displayCode = registrar_display_currency_code(Auth::user());
             $registrarCode = $this->registrar?->currency?->code ?? $displayCode;
 
             if ($registrarCode === $displayCode) {

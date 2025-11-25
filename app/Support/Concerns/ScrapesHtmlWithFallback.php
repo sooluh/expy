@@ -35,7 +35,8 @@ trait ScrapesHtmlWithFallback
         string $url,
         ?string $cookies = null,
         ?string $waitForSelector = null,
-        array $headers = []
+        array $headers = [],
+        ?string $proxyCountry = null
     ): string {
         $headers = [
             'Accept' => 'text/html,application/xhtml+xml',
@@ -96,12 +97,14 @@ trait ScrapesHtmlWithFallback
                     'url' => $url,
                     'status' => $statusCode,
                     'wait_for_selector' => $waitForSelector,
+                    'proxy_country' => $proxyCountry,
                 ]);
 
                 $html = $this->scrapingantService->scrape(
                     $url,
                     $waitForSelector,
                     $cookies,
+                    $proxyCountry,
                 );
 
                 if (is_string($html) && trim($html) !== '') {

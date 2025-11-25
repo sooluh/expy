@@ -3,6 +3,7 @@
 namespace App\Filament\Clusters\Settings\Pages;
 
 use App\Filament\Clusters\Settings\SettingsCluster;
+use App\Jobs\SyncCurrenciesJob;
 use App\Settings\CurrencyapiSettings;
 use App\Settings\ScrapingantSettings;
 use BackedEnum;
@@ -15,6 +16,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Auth;
 
 class Integration extends Page implements HasForms
 {
@@ -22,6 +24,8 @@ class Integration extends Page implements HasForms
     use InteractsWithForms;
 
     protected string $view = 'filament.clusters.settings.pages.integration';
+
+    protected static bool $shouldCache = false;
 
     protected static ?string $cluster = SettingsCluster::class;
 
@@ -107,6 +111,7 @@ class Integration extends Page implements HasForms
         ];
 
         $currencyapi = app(CurrencyapiSettings::class);
+        $oldCurrencyApiKey = $currencyapi->api_key;
         $currencyapi->api_key = $payload['currencyapi'];
         $currencyapi->save();
 
@@ -115,6 +120,14 @@ class Integration extends Page implements HasForms
         $scrapingant->save();
 
         $this->data = $payload;
+
+        if (
+            is_string($payload['currencyapi'])
+            && trim($payload['currencyapi']) !== ''
+            && $payload['currencyapi'] !== $oldCurrencyApiKey
+        ) {
+            SyncCurrenciesJob::dispatch(Auth::id());
+        }
 
         Notification::make()
             ->body('Integration settings successfully updated.')

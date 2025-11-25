@@ -21,6 +21,7 @@ class Registrar extends Model
         'notes',
         'api_support',
         'api_settings',
+        'last_sync_at',
     ];
 
     protected function casts(): array
@@ -28,6 +29,7 @@ class Registrar extends Model
         return [
             'api_support' => RegistrarCode::class,
             'api_settings' => 'array',
+            'last_sync_at' => 'datetime',
         ];
     }
 

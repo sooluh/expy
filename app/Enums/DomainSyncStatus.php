@@ -24,7 +24,7 @@ enum DomainSyncStatus: int implements HasColor, HasIcon, HasLabel
             self::SYNC_INTEGRATION => 'Syncing Integration',
             self::SYNC_RDAP => 'Syncing RDAP',
             self::SYNC_WHOIS => 'Syncing WHOIS',
-            self::COMPLETED => 'Completed',
+            self::COMPLETED => null,
             self::FAILED_SYNC_INTEGRATION => 'Failed',
             self::FAILED_SYNC_RDAP => 'Failed',
             self::FAILED_SYNC_WHOIS => 'Failed',
@@ -36,7 +36,7 @@ enum DomainSyncStatus: int implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::PENDING => 'tabler-clock',
             self::SYNC_INTEGRATION, self::SYNC_RDAP, self::SYNC_WHOIS => 'tabler-refresh-dot',
-            self::COMPLETED => 'tabler-check',
+            self::COMPLETED => null,
             self::FAILED_SYNC_INTEGRATION,
             self::FAILED_SYNC_RDAP,
             self::FAILED_SYNC_WHOIS => 'tabler-alert-triangle',
@@ -47,11 +47,11 @@ enum DomainSyncStatus: int implements HasColor, HasIcon, HasLabel
     {
         return match ($this) {
             self::PENDING => 'gray',
-            self::SYNC_INTEGRATION, self::SYNC_RDAP, self::SYNC_WHOIS => 'blue',
-            self::COMPLETED => 'green',
+            self::SYNC_INTEGRATION, self::SYNC_RDAP, self::SYNC_WHOIS => 'info',
+            self::COMPLETED => null,
             self::FAILED_SYNC_INTEGRATION,
             self::FAILED_SYNC_RDAP,
-            self::FAILED_SYNC_WHOIS => 'red',
+            self::FAILED_SYNC_WHOIS => 'warning',
         };
     }
 }

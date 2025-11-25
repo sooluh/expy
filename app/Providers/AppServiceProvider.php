@@ -48,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
          */
         Table::configureUsing(function (Table $table) {
             return $table
+                ->poll('10s')
                 ->deferFilters(false)
                 ->deferColumnManager(false)
                 ->deferLoading(true)

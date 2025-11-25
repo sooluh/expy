@@ -104,6 +104,8 @@ class SyncRegistrarPrices extends Command
 
             $this->info("{$registrar->name}: {$newCount} new, {$updatedCount} updated");
 
+            $registrar->forceFill(['last_sync_at' => now()])->save();
+
             return self::SUCCESS;
         } catch (Exception $e) {
             $this->error("Failed to sync {$registrar->name}: {$e->getMessage()}");

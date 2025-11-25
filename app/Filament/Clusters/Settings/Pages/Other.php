@@ -19,6 +19,7 @@ use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
+use Tapp\FilamentTimezoneField\Forms\Components\TimezoneSelect;
 
 class Other extends Page implements HasForms
 {
@@ -26,6 +27,8 @@ class Other extends Page implements HasForms
     use InteractsWithForms;
 
     protected string $view = 'filament.clusters.settings.pages.other';
+
+    protected static bool $shouldCache = false;
 
     protected static ?string $cluster = SettingsCluster::class;
 
@@ -76,12 +79,10 @@ class Other extends Page implements HasForms
                     ->description('Other supporting settings.')
                     ->columns(1)
                     ->schema([
-                        Select::make('timezone')
+                        TimezoneSelect::make('timezone')
                             ->label('Timezone')
                             ->searchable()
-                            ->required()
-                            ->columnSpanFull()
-                            ->options(collect(timezone_identifiers_list())->mapWithKeys(fn ($val) => [$val => $val])->toArray()),
+                            ->required(),
 
                         Select::make('currency')
                             ->label('Currency')
@@ -127,5 +128,8 @@ class Other extends Page implements HasForms
             ->title('Other settings saved successfully.')
             ->success()
             ->send();
+
+        $this->dispatch('currency-updated');
+        $this->redirect(static::getUrl(), navigate: true);
     }
 }

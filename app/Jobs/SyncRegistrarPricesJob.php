@@ -15,6 +15,8 @@ class SyncRegistrarPricesJob implements ShouldQueue
 {
     use Queueable, SyncsRegistrarFees;
 
+    public int $timeout = 180;
+
     public function __construct(
         public int $registrarId,
         public ?int $userId = null
@@ -75,6 +77,8 @@ class SyncRegistrarPricesJob implements ShouldQueue
 
             $message = "{$registrar->name}: {$newCount} new TLD(s), {$updatedCount} updated";
             $this->sendNotification($message, 'success');
+
+            $registrar->forceFill(['last_sync_at' => now()])->save();
         } catch (Exception $e) {
             Log::error('Failed to sync registrar prices', [
                 'registrar_id' => $this->registrarId,

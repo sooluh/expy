@@ -25,7 +25,7 @@ class ScrapingantService
         ]);
     }
 
-    public function scrape(string $url, ?string $waitForSelector = null, ?string $cookies = null): ?string
+    public function scrape(string $url, ?string $waitForSelector = null, ?string $cookies = null, ?string $proxyCountry = null): ?string
     {
         $apiKey = $this->getApiKey();
 
@@ -57,7 +57,7 @@ class ScrapingantService
         $baseQuery = [
             'url' => $url,
             'x-api-key' => $apiKey,
-            'proxy_country' => $proxyCountries[array_rand($proxyCountries)],
+            'proxy_country' => $proxyCountry ?: $proxyCountries[array_rand($proxyCountries)],
         ];
 
         if ($waitForSelector !== null) {

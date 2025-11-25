@@ -48,7 +48,7 @@ class IdcloudhostService
     public function getPrices(): Collection
     {
         try {
-            $html = $this->fetchHtmlWithFallback('https://idcloudhost.com/domain/');
+            $html = $this->fetchHtmlWithFallback('https://idcloudhost.com/domain/', proxyCountry: 'ID');
 
             return $this->parsePricesFromHtml($html);
         } catch (GuzzleException|Exception $e) {
@@ -89,7 +89,8 @@ class IdcloudhostService
             $html = $this->fetchHtmlWithFallback(
                 'https://my.idcloudhost.com/clientarea.php?action=domains',
                 $cookies,
-                'table#tableDomainsList'
+                'table#tableDomainsList',
+                proxyCountry: 'ID'
             );
 
             if (! is_string($html) || trim($html) === '') {

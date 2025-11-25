@@ -241,7 +241,7 @@ class IdwebhostService
                 throw new Exception('Empty HTML response from IDwebhost.');
             }
         } catch (Exception $e) {
-            $html = $this->fetchHtmlWithFallback('https://idwebhost.com/domain-murah');
+            $html = $this->fetchHtmlWithFallback('https://idwebhost.com/domain-murah', proxyCountry: 'ID');
         }
 
         return [
@@ -350,7 +350,8 @@ class IdwebhostService
             $html = $this->fetchHtmlWithFallback(
                 'https://member.idwebhost.com/clientarea.php?action=domains',
                 $cookies,
-                'table#tableDomainsList'
+                'table#tableDomainsList',
+                proxyCountry: 'ID'
             );
 
             if (! is_string($html) || trim($html) === '') {

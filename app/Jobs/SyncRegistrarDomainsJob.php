@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\DomainSyncStatus;
 use App\Models\Domain;
 use App\Models\Registrar;
+use App\Support\Concerns\NotifiesJobFailure;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -13,7 +14,9 @@ use Illuminate\Support\Facades\Log;
 
 class SyncRegistrarDomainsJob implements ShouldQueue
 {
-    use Queueable;
+    use NotifiesJobFailure, Queueable;
+
+    public int $timeout = 180;
 
     public function __construct(public int $registrarId, public ?int $userId = null) {}
 
@@ -108,11 +111,19 @@ class SyncRegistrarDomainsJob implements ShouldQueue
 
                 SyncDomainJob::dispatch($domain->id, $this->userId);
             }
+
+            $registrar->forceFill(['last_sync_at' => now()])->save();
         } catch (Exception $e) {
             Log::error('Failed to sync registrar domains', [
                 'registrar_id' => $this->registrarId,
                 'error' => $e->getMessage(),
             ]);
+
+            $this->notifyFailure(
+                $this->userId,
+                'Domain Sync Failed',
+                "Failed to sync domains for {$registrar->name}: {$e->getMessage()}"
+            );
         }
     }
 }
