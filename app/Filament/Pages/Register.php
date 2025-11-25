@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\User;
 use Caresome\FilamentAuthDesigner\Pages\Auth\Register as BaseRegister;
+use CodeWithDennis\SimpleAlert\Components\SimpleAlert;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
@@ -21,6 +22,11 @@ class Register extends BaseRegister
         parent::mount();
     }
 
+    public function getHeading(): string|Htmlable|null
+    {
+        return 'Create admin account';
+    }
+
     public function getSubheading(): string|Htmlable|null
     {
         return null;
@@ -30,6 +36,12 @@ class Register extends BaseRegister
     {
         return $schema
             ->components([
+                SimpleAlert::make('first_time_setup')
+                    ->info()
+                    ->icon('tabler-help-octagon')
+                    ->title('First time setup')
+                    ->description('Since this is your first time setting up the application, please create an admin account.'),
+
                 $this->getEmailFormComponent(),
                 $this->getPasswordFormComponent(),
                 $this->getPasswordConfirmationFormComponent(),
