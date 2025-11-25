@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 trait RegistrarService
 {
-    protected static function resolveApiSupport(mixed $value): RegistrarCode
+    protected static function resolveRegistrar(mixed $value): RegistrarCode
     {
         if ($value instanceof RegistrarCode) {
             return $value;
@@ -26,7 +26,7 @@ trait RegistrarService
 
     protected static function requiresApiKey(mixed $apiSupport): bool
     {
-        $support = static::resolveApiSupport($apiSupport);
+        $support = static::resolveRegistrar($apiSupport);
 
         return match ($support) {
             RegistrarCode::DYNADOT => true,

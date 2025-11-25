@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Registrars\Schemas;
 
 use App\Enums\RegistrarCode;
 use App\Support\Concerns\RegistrarService;
+use CodeWithDennis\SimpleAlert\Components\SimpleAlert;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
@@ -48,7 +49,7 @@ class RegistrarForm
                     ->options(RegistrarCode::class)
                     ->default(RegistrarCode::NONE)
                     ->afterStateUpdated(function (callable $set, RegistrarCode|int|string|null $state): void {
-                        $resolved = self::resolveApiSupport($state);
+                        $resolved = self::resolveRegistrar($state);
 
                         if ($resolved !== RegistrarCode::DYNADOT) {
                             $set('api_settings.api_key', null);
@@ -63,12 +64,25 @@ class RegistrarForm
                         }
                     }),
 
+                SimpleAlert::make('scrapingant_alert')
+                    ->warning()
+                    ->icon('tabler-alert-triangle')
+                    ->title('ScrapingAnt fallback required')
+                    ->description('This registrar relies on ScrapingAnt for fallback. Please ensure ScrapingAnt API access is configured.')
+                    ->visible(fn (callable $get) => in_array(self::resolveRegistrar($get('api_support')), [
+                        RegistrarCode::IDWEBHOST,
+                        RegistrarCode::IDCLOUDHOST,
+                    ])),
+
                 TextInput::make('api_settings.api_key')
-                    ->label(fn (callable $get) => self::resolveApiSupport($get('api_support')) === RegistrarCode::DYNADOT ? 'API production key' : 'API key')
+                    ->label('API key')
                     ->password()
                     ->revealable()
-                    ->visible(fn (callable $get) => in_array(self::resolveApiSupport($get('api_support')), [RegistrarCode::DYNADOT, RegistrarCode::PORKBUN]))
                     ->dehydrated()
+                    ->visible(fn (callable $get) => in_array(self::resolveRegistrar($get('api_support')), [
+                        RegistrarCode::DYNADOT,
+                        RegistrarCode::PORKBUN,
+                    ]))
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {
                             return;
@@ -92,8 +106,10 @@ class RegistrarForm
                     ->label('Secret key')
                     ->password()
                     ->revealable()
-                    ->visible(fn (callable $get) => self::resolveApiSupport($get('api_support')) === RegistrarCode::PORKBUN)
                     ->dehydrated()
+                    ->visible(fn (callable $get) => in_array(self::resolveRegistrar($get('api_support')), [
+                        RegistrarCode::PORKBUN,
+                    ]))
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {
                             return;
@@ -118,8 +134,11 @@ class RegistrarForm
                     ->belowContent('Format: cookie_name_1=cookie_value_1;cookie_name_2=...')
                     ->password()
                     ->revealable()
-                    ->visible(fn (callable $get) => in_array(self::resolveApiSupport($get('api_support')), [RegistrarCode::IDWEBHOST, RegistrarCode::IDCLOUDHOST]))
                     ->dehydrated()
+                    ->visible(fn (callable $get) => in_array(self::resolveRegistrar($get('api_support')), [
+                        RegistrarCode::IDWEBHOST,
+                        RegistrarCode::IDCLOUDHOST,
+                    ]))
                     ->afterStateHydrated(function (TextInput $component, $state): void {
                         if (blank($state)) {
                             return;
