@@ -1,0 +1,64 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8080:80'
+    env_file:
+      - .env
+    environment:
+      # Override or supplement .env as needed
+      APP_ENV: production
+      APP_DEBUG: true
+      APP_URL: http://localhost:8080
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      REDIS_HOST: redis
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/database.sqlite
+    volumes:
+      - .:/app
+      - sqlite-data:/app/database
+    depends_on:
+      - redis
+      # - mariadb
+      # - postgres
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+  # mariadb:
+  #   image: mariadb:11
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: secret
+  #     MYSQL_DATABASE: expy
+  #     MYSQL_USER: expy
+  #     MYSQL_PASSWORD: secret
+  #   volumes:
+  #     - mariadb-data:/var/lib/mysql
+  #   ports:
+  #     - "3306:3306"
+
+  # postgres:
+  #   image: postgres:16-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: expy
+  #     POSTGRES_USER: expy
+  #     POSTGRES_PASSWORD: secret
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+volumes:
+  sqlite-data:
+  redis-data:
+  # mariadb-data:
+  # postgres-data:
