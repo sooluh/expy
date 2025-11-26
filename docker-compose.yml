@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      tags:
+        - sooluh/expy:latest
     ports:
       - '8080:80'
     env_file:

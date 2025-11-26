@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('rdaps', function (Blueprint $table) {
             $table->id();
-            $table->string('tld')->index();
+            $table->string('tld')->unique();
             $table->text('rdap');
             $table->timestamps();
         });
