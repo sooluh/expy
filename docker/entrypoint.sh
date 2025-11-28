@@ -1,23 +1,32 @@
 #!/bin/sh
 set -e
 
-# Ensure sqlite file exists if using sqlite
 if [ "${DB_CONNECTION}" = "sqlite" ] && [ -n "${DB_DATABASE}" ]; then
   mkdir -p "$(dirname "${DB_DATABASE}")"
 
   if [ ! -f "${DB_DATABASE}" ]; then
+    echo "Creating sqlite database at ${DB_DATABASE}"
+
     touch "${DB_DATABASE}"
+    BOOST_ENABLED=false php artisan migrate:fresh --force || true
   fi
 fi
 
-# Run migrations once
-BOOST_ENABLED=false php artisan migrate --force || true
-
-# If the users table is missing the expected soft delete column (stale schema), rebuild once
-if BOOST_ENABLED=false php -r "require 'vendor/autoload.php'; \$app = require 'bootstrap/app.php'; \$kernel = \$app->make(Illuminate\\Contracts\\Console\\Kernel::class); \$kernel->bootstrap(); echo (\\Illuminate\\Support\\Facades\\Schema::hasTable('users') && \\Illuminate\\Support\\Facades\\Schema::hasColumn('users', 'deleted_at')) ? 'ok' : 'missing';" | grep -q missing; then
-  echo \"Detected stale schema, refreshing database...\"
-  BOOST_ENABLED=false php artisan migrate:fresh --force || true
+if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+  echo "Running database migrations..."
+  BOOST_ENABLED=false php artisan migrate --force || true
 fi
 
-BOOST_ENABLED=false php artisan queue:work --tries=3 --timeout=120 &
+if [ "${APP_ENV}" = "production" ]; then
+  echo "Refreshing Laravel caches..."
+  BOOST_ENABLED=false php artisan config:clear || true
+  BOOST_ENABLED=false php artisan route:clear || true
+  BOOST_ENABLED=false php artisan view:clear || true
+
+  BOOST_ENABLED=false php artisan config:cache || true
+  BOOST_ENABLED=false php artisan route:cache || true
+  BOOST_ENABLED=false php artisan view:cache || true
+fi
+
+echo "Starting FrankenPHP..."
 exec frankenphp run --config /app/Caddyfile

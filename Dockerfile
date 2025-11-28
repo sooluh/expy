@@ -1,13 +1,7 @@
-# syntax=docker/dockerfile:1.7
-
-###########
-# PHP base with extensions
-###########
-FROM dunglas/frankenphp:1.9.1-php8.4.15-alpine AS php-base
+FROM dunglas/frankenphp:1.9.1-php8.4.15-alpine AS php-build
 
 WORKDIR /app
 
-# Runtime deps + build deps for extensions
 RUN apk add --no-cache \
         git \
         unzip \
@@ -27,14 +21,20 @@ RUN apk add --no-cache \
         build-base \
     && pecl install redis \
     && docker-php-ext-enable redis \
-    && docker-php-ext-install pdo pdo_mysql pdo_pgsql pdo_sqlite zip intl gd \
+    && docker-php-ext-install \
+        pdo \
+        pdo_mysql \
+        pdo_pgsql \
+        pdo_sqlite \
+        zip \
+        intl \
+        gd \
+        bcmath \
     && apk del --no-network .build-deps \
     && rm -rf /var/cache/apk/*
 
-###########
-# Composer dependencies
-###########
-FROM php-base AS composer
+FROM php-build AS composer
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY composer.json composer.lock ./
@@ -46,12 +46,7 @@ COPY routes routes
 COPY resources resources
 COPY public public
 COPY artisan artisan
-COPY Caddyfile Caddyfile
-COPY vite.config.* .
-COPY postcss.config.* .
-COPY tailwind.config.* .
-COPY pnpm-lock.yaml pnpm-lock.yaml
-COPY package.json package.json
+
 RUN mkdir -p \
         storage/framework/cache/data \
         storage/framework/sessions \
@@ -60,11 +55,10 @@ RUN mkdir -p \
     && chown -R www-data:www-data storage bootstrap/cache \
     && composer install --no-dev --optimize-autoloader --no-interaction --no-progress
 
-###########
-# Frontend build
-###########
 FROM node:20-alpine AS frontend
+
 WORKDIR /app
+
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY --from=composer /app/vendor /app/vendor
@@ -72,37 +66,58 @@ COPY resources resources
 COPY vite.config.* ./
 COPY postcss.config.* ./
 COPY tailwind.config.* ./
+
 RUN pnpm run build
 
-###########
-# Runtime image
-###########
-FROM php-base AS runtime
+FROM dunglas/frankenphp:1.9.1-php8.4.15-alpine AS php-runtime
+
+RUN apk add --no-cache \
+        libpng \
+        freetype \
+        icu-libs \
+        libzip \
+        postgresql-libs \
+        sqlite-libs \
+        oniguruma \
+        whois
+
 WORKDIR /app
 
-# Copy application source
-COPY . .
+COPY --from=php-build /usr/local/lib/php/extensions /usr/local/lib/php/extensions
+COPY --from=php-build /usr/local/etc/php/conf.d /usr/local/etc/php/conf.d
 
-# Clear any stale caches from the build context
-RUN rm -f bootstrap/cache/*.php
+FROM php-runtime AS runtime
 
-# Bring in vendor and built assets
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+COPY ./docker/Caddyfile Caddyfile
+COPY app app
+COPY bootstrap bootstrap
+COPY config config
+COPY database database
+COPY routes routes
+COPY resources resources
+COPY public public
+COPY artisan artisan
+
+COPY vite.config.* .
+COPY postcss.config.* .
+COPY tailwind.config.* .
+
 COPY --from=composer /app/vendor /app/vendor
 COPY --from=frontend /app/public/build /app/public/build
 
-# Prepare writable dirs and optimize Laravel
 RUN mkdir -p \
         storage/framework/cache/data \
         storage/framework/sessions \
         storage/framework/views \
         bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && BOOST_ENABLED=false php artisan storage:link || true \
-    && BOOST_ENABLED=false php artisan config:cache \
-    && BOOST_ENABLED=false php artisan route:cache \
-    && BOOST_ENABLED=false php artisan view:cache
+    && chown -R www-data:www-data storage bootstrap/cache
 
-COPY docker/entrypoint.sh /entrypoint.sh
+RUN rm -f bootstrap/cache/*.php || true
+
+COPY ./docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 80

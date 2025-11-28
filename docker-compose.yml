@@ -1,16 +1,35 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      tags:
-        - sooluh/expy:latest
-    ports:
-      - '8080:80'
+    image: sooluh/expy:latest
+    restart: unless-stopped
     env_file:
       - .env
     environment:
-      # Override or supplement .env as needed
+      APP_ENV: production
+      APP_DEBUG: true
+      APP_URL: http://localhost:8080
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      REDIS_HOST: redis
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/database.sqlite
+    ports:
+      - '8080:80'
+    volumes:
+      - sqlite-data:/app/database
+    depends_on:
+      - redis
+      # - mariadb
+      # - postgres
+
+  queue:
+    image: sooluh/expy:latest
+    restart: unless-stopped
+    command: php artisan queue:work --sleep=3 --tries=3 --timeout=120
+    env_file:
+      - .env
+    environment:
       APP_ENV: production
       APP_DEBUG: true
       APP_URL: http://localhost:8080
@@ -21,12 +40,9 @@ services:
       DB_CONNECTION: sqlite
       DB_DATABASE: /app/database/database.sqlite
     volumes:
-      - .:/app
       - sqlite-data:/app/database
     depends_on:
-      - redis
-      # - mariadb
-      # - postgres
+      - app
 
   redis:
     image: redis:7-alpine
