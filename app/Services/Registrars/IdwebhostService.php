@@ -498,12 +498,36 @@ class IdwebhostService
         }
 
         $domains = [];
+        $skipped = 0;
 
         foreach ($rows as $tr) {
             /** @var DOMElement $tr */
+            if (strtolower($tr->firstChild?->nodeName ?? '') === 'th') {
+                $skipped++;
+
+                continue;
+            }
+
             $tds = $tr->getElementsByTagName('td');
 
             if ($tds->length < 4) {
+                $skipped++;
+
+                continue;
+            }
+
+            $hasCheckbox = false;
+
+            foreach ($tds->item(0)?->getElementsByTagName('input') ?? [] as $input) {
+                if ($input instanceof DOMElement && $input->getAttribute('name') === 'domids[]') {
+                    $hasCheckbox = true;
+                    break;
+                }
+            }
+
+            if (! $hasCheckbox) {
+                $skipped++;
+
                 continue;
             }
 
@@ -511,6 +535,14 @@ class IdwebhostService
             $domainName = $this->extractDomainNameFromCell($domainTd);
 
             if ($domainName === null || $domainName === '') {
+                if ($skipped < 3) {
+                    Log::debug('[IDwebhost] Skipped domain row', [
+                        'registrar_id' => $this->registrar->id ?? null,
+                        'td_text' => trim($domainTd?->textContent ?? ''),
+                    ]);
+                }
+                $skipped++;
+
                 continue;
             }
 
@@ -528,6 +560,15 @@ class IdwebhostService
                 'security_lock' => null,
                 'whois_privacy' => null,
             ];
+        }
+
+        if ($skipped > 0 && $domains === []) {
+            Log::warning('[IDwebhost] getDomains skipped all rows', [
+                'registrar_id' => $this->registrar->id ?? null,
+                'skipped' => $skipped,
+                'row_count' => $rowCount,
+                'sample_rows' => collect($rows)->take(3)->map(fn ($node) => trim($node->textContent ?? ''))->all(),
+            ]);
         }
 
         return collect($domains);
