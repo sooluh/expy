@@ -15,7 +15,6 @@ RUN apk add --no-cache \
         libzip-dev \
         postgresql-dev \
         sqlite-dev \
-        whois \
     && apk add --no-cache --virtual .build-deps \
         autoconf \
         build-base \
@@ -53,7 +52,8 @@ RUN mkdir -p \
         storage/framework/views \
         bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
-    && composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+    && composer install --no-dev --optimize-autoloader --no-interaction --no-progress \
+    && rm -rf vendor/*/*/tests vendor/*/*/test vendor/*/*/doc vendor/*/*/docs vendor/*/*/.git
 
 FROM node:20-alpine AS frontend
 
@@ -78,8 +78,7 @@ RUN apk add --no-cache \
         libzip \
         postgresql-libs \
         sqlite-libs \
-        oniguruma \
-        whois
+        oniguruma
 
 WORKDIR /app
 
@@ -97,13 +96,9 @@ COPY bootstrap bootstrap
 COPY config config
 COPY database database
 COPY routes routes
-COPY resources resources
+COPY resources/views resources/views
 COPY public public
 COPY artisan artisan
-
-COPY vite.config.* .
-COPY postcss.config.* .
-COPY tailwind.config.* .
 
 COPY --from=composer /app/vendor /app/vendor
 COPY --from=frontend /app/public/build /app/public/build
