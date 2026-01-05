@@ -52,7 +52,8 @@ RUN mkdir -p \
         storage/framework/views \
         bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
-    && composer install --no-dev --optimize-autoloader --no-interaction --no-progress \
+    && export COMPOSER_PROCESS_TIMEOUT=2000 \
+    && composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist \
     && rm -rf vendor/*/*/tests vendor/*/*/test vendor/*/*/doc vendor/*/*/docs vendor/*/*/.git
 
 FROM node:20-alpine AS frontend
