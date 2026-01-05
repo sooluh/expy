@@ -7,15 +7,12 @@ use App\Jobs\SyncCurrenciesJob;
 use App\Models\User;
 use App\Settings\CurrencyapiSettings;
 use Filament\Actions\Action;
-use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRecords;
 use Illuminate\Support\Facades\Auth;
 
 class ManageCurrencies extends ManageRecords
 {
-    use InteractsWithActions;
-
     protected static string $resource = CurrencyResource::class;
 
     protected function getActions(): array

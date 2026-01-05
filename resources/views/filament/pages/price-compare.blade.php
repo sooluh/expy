@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <div class="max-w-7xl mx-auto">
+    <div class="w-full max-w-3xl mx-auto">
         <x-filament::section>
             <x-slot name="heading">
                 Compare Registrar Prices
